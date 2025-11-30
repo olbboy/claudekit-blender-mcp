@@ -181,6 +181,11 @@ export function wrapError(error: unknown, context: string): BlenderMCPError {
 
 /**
  * Get recovery suggestions based on error category
+ *
+ * TYPE_SAFETY_003 FIX: Added explicit null check and validation
+ * to handle unknown category values that might bypass TypeScript
+ * at runtime (e.g., from external input or JSON parsing).
+ *
  * @param category - Error category
  * @returns Array of recovery suggestions
  */
@@ -233,7 +238,20 @@ export function getRecoverySuggestions(category: ErrorCategory): string[] {
     ]
   };
 
-  return suggestions[category] || suggestions[ErrorCategory.INTERNAL];
+  // TYPE_SAFETY_003 FIX: Explicit validation with fallback
+  // This handles cases where category might be an unexpected value at runtime
+  const categorySuggestions = suggestions[category];
+
+  if (!categorySuggestions || categorySuggestions.length === 0) {
+    logger.warn('Unknown or invalid error category for recovery suggestions', {
+      operation: 'getRecoverySuggestions',
+      category,
+      categoryType: typeof category
+    });
+    return suggestions[ErrorCategory.INTERNAL];
+  }
+
+  return categorySuggestions;
 }
 
 /**

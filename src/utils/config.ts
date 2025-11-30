@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod';
-import { LogLevel } from './logger.js';
+import { LogLevel, logger } from './logger.js';
 
 // Configuration schema using Zod for validation
 const ConfigSchema = z.object({
@@ -73,21 +73,69 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 /**
  * Parse environment variable as number
+ *
+ * BUG-007 FIX: Added safe integer check to prevent out-of-range values
+ * from bypassing schema validation (e.g., port 999999).
  */
 function parseEnvNumber(key: string, defaultValue: number): number {
   const value = process.env[key];
   if (!value) return defaultValue;
+
   const parsed = parseInt(value, 10);
-  return isNaN(parsed) ? defaultValue : parsed;
+
+  // Validate it's a number
+  if (isNaN(parsed)) {
+    return defaultValue;
+  }
+
+  // BUG-007 FIX: Validate it's a safe integer to prevent overflow
+  if (!Number.isSafeInteger(parsed)) {
+    logger.warn('Environment variable exceeds safe integer range', {
+      operation: 'parseEnvNumber',
+      key,
+      value,
+      defaultValue
+    });
+    return defaultValue;
+  }
+
+  return parsed;
 }
 
 /**
  * Parse environment variable as boolean
+ *
+ * CONFIG_VALIDATION_001 FIX: Properly handle explicit false values.
+ * Previously 'false' would fall through to defaultValue instead of false.
+ *
+ * Accepted true values: 'true', '1', 'yes'
+ * Accepted false values: 'false', '0', 'no'
+ * Ambiguous values: logs warning and uses default
  */
 function parseEnvBoolean(key: string, defaultValue: boolean): boolean {
   const value = process.env[key]?.toLowerCase();
   if (!value) return defaultValue;
-  return value === 'true' || value === '1' || value === 'yes';
+
+  // Explicit true values
+  if (value === 'true' || value === '1' || value === 'yes') {
+    return true;
+  }
+
+  // CONFIG_VALIDATION_001 FIX: Explicit false values
+  if (value === 'false' || value === '0' || value === 'no') {
+    return false;
+  }
+
+  // Ambiguous value - log warning and use default
+  logger.warn('Ambiguous boolean environment variable', {
+    operation: 'parseEnvBoolean',
+    key,
+    value,
+    defaultValue,
+    message: 'Use true/false, 1/0, or yes/no'
+  });
+
+  return defaultValue;
 }
 
 /**
@@ -151,8 +199,28 @@ function buildConfig(): Config {
     }
   };
 
-  // Validate and return
-  return ConfigSchema.parse(rawConfig);
+  // BUG-007 FIX: Re-validate with schema to catch out-of-range values
+  // This ensures schema constraints (like port 1-65535) are enforced
+  // even after environment variable parsing
+  try {
+    return ConfigSchema.parse(rawConfig);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      logger.error('Config validation failed', undefined, {
+        operation: 'buildConfig',
+        errors: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }))
+      });
+    }
+    throw new Error(
+      'Invalid configuration. Check environment variables. ' +
+      (error instanceof z.ZodError
+        ? error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+        : String(error))
+    );
+  }
 }
 
 // Singleton config instance

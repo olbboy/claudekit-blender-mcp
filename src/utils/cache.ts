@@ -64,7 +64,18 @@ class ResponseCache {
       return undefined;
     }
 
-    entry.hits++;
+    // BUG-015 FIX: Increment hits with overflow protection
+    // After Number.MAX_SAFE_INTEGER accesses, reset to prevent overflow
+    if (entry.hits < Number.MAX_SAFE_INTEGER) {
+      entry.hits++;
+    } else {
+      logger.debug('Cache hit counter reset due to overflow', {
+        key,
+        previousHits: entry.hits
+      });
+      entry.hits = 1; // Reset to 1 (this is a hit)
+    }
+
     this.stats.hits++;
     logger.debug('Cache hit', { key, hits: entry.hits });
 
@@ -73,6 +84,9 @@ class ResponseCache {
 
   /**
    * Set a value in cache
+   *
+   * BUG-006 FIX: Added TTL bounds checking to prevent integer overflow
+   * when converting to milliseconds or using extreme values.
    */
   set<T>(key: string, value: T, ttlSeconds?: number): void {
     if (!this.config.enabled) {
@@ -84,15 +98,43 @@ class ResponseCache {
       this.evictLRU();
     }
 
+    // BUG-006 FIX: Validate and cap TTL to prevent overflow
+    const MAX_TTL_SECONDS = 86400; // 1 day max
+    const MIN_TTL_SECONDS = 1; // 1 second min
+
+    let validTtl = ttlSeconds !== undefined
+      ? ttlSeconds
+      : this.config.ttlSeconds;
+
+    // Clamp to valid range
+    validTtl = Math.max(MIN_TTL_SECONDS, Math.min(validTtl, MAX_TTL_SECONDS));
+
+    // Convert to milliseconds with overflow check
+    const ttlMs = validTtl * 1000;
+    const validTtlMs = Number.isSafeInteger(ttlMs) && Number.isFinite(ttlMs)
+      ? ttlMs
+      : MAX_TTL_SECONDS * 1000;
+
     const entry: CacheEntry<T> = {
       value,
       timestamp: Date.now(),
-      ttl: (ttlSeconds || this.config.ttlSeconds) * 1000,
+      ttl: validTtlMs,
       hits: 0
     };
 
     this.cache.set(key, entry);
-    logger.debug('Cache set', { key, ttlSeconds: ttlSeconds || this.config.ttlSeconds });
+
+    // Log if TTL was capped
+    if (ttlSeconds !== undefined && ttlSeconds !== validTtl) {
+      logger.debug('Cache TTL capped', {
+        operation: 'set',
+        key,
+        requestedTtl: ttlSeconds,
+        actualTtl: validTtl
+      });
+    } else {
+      logger.debug('Cache set', { key, ttlSeconds: validTtl });
+    }
   }
 
   /**
@@ -122,24 +164,60 @@ class ResponseCache {
   }
 
   /**
+   * Escape special regex characters in a string
+   * BUG-002 FIX: Prevents regex injection attacks
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /**
    * Invalidate cache entries matching a pattern
+   *
+   * BUG-002 FIX: Escape special regex characters when string pattern is provided
+   * to prevent regex injection attacks that could clear entire cache.
    */
   invalidatePattern(pattern: string | RegExp): number {
-    const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
-    let count = 0;
+    let regex: RegExp;
+
+    if (typeof pattern === 'string') {
+      // BUG-002 FIX: Escape special regex characters to prevent injection
+      const escaped = this.escapeRegex(pattern);
+      regex = new RegExp(escaped);
+
+      logger.debug('Cache pattern invalidation', {
+        operation: 'invalidatePattern',
+        original: pattern,
+        escaped,
+        regexSource: regex.source
+      });
+    } else {
+      regex = pattern;
+    }
+
+    // BUG-002 FIX: Collect keys to delete in separate array to avoid iterator issues
+    const keysToDelete: string[] = [];
 
     for (const key of this.cache.keys()) {
       if (regex.test(key)) {
-        this.cache.delete(key);
-        count++;
+        keysToDelete.push(key);
       }
     }
 
-    if (count > 0) {
-      logger.debug('Cache invalidated by pattern', { pattern: pattern.toString(), count });
+    // Delete in separate loop
+    for (const key of keysToDelete) {
+      this.cache.delete(key);
     }
 
-    return count;
+    if (keysToDelete.length > 0) {
+      logger.debug('Cache invalidated by pattern', {
+        operation: 'invalidatePattern',
+        pattern: pattern.toString(),
+        count: keysToDelete.length
+      });
+    }
+
+    return keysToDelete.length;
   }
 
   /**

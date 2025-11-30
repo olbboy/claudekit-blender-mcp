@@ -9,6 +9,32 @@ export interface BlenderSocketResponse {
   message?: string;
 }
 
+/**
+ * Type guard for BlenderSocketResponse (TYPE_SAFETY_001 fix)
+ * Validates response structure before type casting to prevent runtime errors
+ */
+export function isBlenderSocketResponse(obj: unknown): obj is BlenderSocketResponse {
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
+
+  const response = obj as Record<string, unknown>;
+
+  // status must be 'success' or 'error'
+  if (response.status !== 'success' && response.status !== 'error') {
+    return false;
+  }
+
+  // message, if present, must be string
+  if (response.message !== undefined && typeof response.message !== 'string') {
+    return false;
+  }
+
+  // result can be anything (unknown) so no validation needed
+
+  return true;
+}
+
 export enum ResponseFormat {
   MARKDOWN = 'markdown',
   JSON = 'json'

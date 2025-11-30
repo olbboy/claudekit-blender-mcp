@@ -1,0 +1,213 @@
+================================================================================
+CRITICAL BUG FINDINGS - ClaudeKit Blender MCP Security Audit
+================================================================================
+
+SUMMARY: 15 bugs found (2 Critical, 4 High, 7+ Medium/Low)
+
+================================================================================
+CRITICAL SEVERITY - IMMEDIATE REMEDIATION REQUIRED
+================================================================================
+
+BUG-001: PATH TRAVERSAL VALIDATION BYPASS
+Location: src/utils/validators.ts:45-51 (filePathSchema)
+Risk Level: CRITICAL
+Attack Vector: Double URL encoding, normalization bypass
+Impact: Arbitrary file read/write outside project directory
+Example: Path "..%2F..%2Fetc%2Fpasswd" passes validation if decoded later
+Proposed Fix: Normalize path before validation, use path.resolve()
+Fix Effort: Low (2-3 lines added)
+
+BUG-003: UNBOUNDED BUFFER ACCUMULATION IN SOCKET CLIENT
+Location: src/utils/socket-client.ts:101-147 (receiveFullResponse)
+Risk Level: CRITICAL
+Attack Vector: Malicious/faulty Blender addon sending infinite data
+Impact: Memory exhaustion → process crash → DoS
+Scenario: Response accumulates 1MB → 100MB → 1GB, OOM kill
+Proposed Fix: Add MAX_BUFFER_SIZE = 50MB limit, check totalBytes
+Fix Effort: Low (3-5 lines added)
+
+================================================================================
+HIGH SEVERITY - FIX WITHIN ONE WEEK
+================================================================================
+
+BUG-002: CACHE KEY COLLISION VIA REGEX INJECTION
+Location: src/utils/cache.ts:127-143 (invalidatePattern)
+Risk Level: HIGH
+Attack Vector: Unescaped regex in cache.invalidatePattern()
+Impact: Cache DoS (invalidate all cached values), performance degradation
+Example: pattern='.*' invalidates entire cache
+Proposed Fix: Escape regex special chars with pattern.replace(/[.*+?...]/g, '\\$&')
+Fix Effort: Low (1 line)
+
+BUG-004: INTEGER OVERFLOW IN RATE LIMITING
+Location: src/utils/rate-limiter.ts:57-61
+Risk Level: HIGH
+Attack Vector: Clock skew, tokensToAdd becomes Infinity/NaN
+Impact: Silent rate limit bypass under large timePassed values
+Math: (timePassed / 60000) * limit can overflow → NaN → bypass
+Proposed Fix: Add isFinite() check, clamp timePassed
+Fix Effort: Low (2-3 lines)
+
+BUG-005: REGEX DENIAL OF SERVICE (ReDoS) IN CODE VALIDATION
+Location: src/tools/scripting.ts:17-30 (DANGEROUS_PATTERNS)
+Risk Level: HIGH
+Attack Vector: Loose regex with catastrophic backtracking
+Impact: Code validation hangs/freezes (180s timeout exceeded)
+Example: /\bopen\s*\([^)]*['"][wa]/i with pathological input
+Proposed Fix: Simplify regex, bound whitespace (/\bopen\s{0,5}\(/i)
+Fix Effort: Medium (rewrite 3-4 patterns)
+
+BUG-007: CONFIGURATION VALIDATION BYPASS
+Location: src/utils/config.ts:77-82 (parseEnvNumber)
+Risk Level: HIGH
+Attack Vector: ENV vars bypass Zod schema constraints
+Impact: Invalid config accepted (port > 65535, negative limits)
+Example: RATE_LIMIT_MAX_CONCURRENT=1000000 overrides schema max:50
+Proposed Fix: Re-validate config after parseEnvNumber (schema already handles it)
+Fix Effort: Low (verify ConfigSchema.parse is called)
+
+================================================================================
+MEDIUM SEVERITY - FIX THIS MONTH
+================================================================================
+
+BUG-006: CACHE TTL INTEGER OVERFLOW
+Location: src/utils/cache.ts:88-92
+Risk Level: MEDIUM
+Attack: set(key, value, Number.MAX_SAFE_INTEGER)
+Impact: Cache never expires → memory leak, stale data
+Proposed Fix: Clamp ttl to max 86400 seconds (1 day), check overflow
+Fix Effort: Low (2-3 lines)
+
+BUG-008: SEARCH QUERY SCHEMA TOO PERMISSIVE
+Location: src/utils/validators.ts:85-90 (searchQuerySchema)
+Risk Level: MEDIUM
+Attack: Injection into external API calls (PolyHaven/Sketchfab)
+Impact: Depends on downstream URL encoding
+Proposed Fix: URL-encode before passing to APIs, remove control chars
+Fix Effort: Medium (audit all API integration points)
+
+BUG-009: SOCKET TIMEOUT NOT RESET DURING DATA RECEIVE
+Location: src/utils/socket-client.ts:32, 101-147
+Risk Level: MEDIUM
+Attack: Large response (50MB) takes 190s to stream, timeout at 180s
+Impact: Large asset imports fail silently with "Response timeout"
+Proposed Fix: Reset timeout on each data chunk: socket.setTimeout(this.timeout)
+Fix Effort: Low (1 line in onData handler)
+
+BUG-010: RATE LIMITER CLEANUP RACE CONDITION
+Location: src/utils/rate-limiter.ts:212-225
+Risk Level: MEDIUM
+Attack: Concurrent cleanup() and checkLimit() race condition
+Impact: Bucket deleted during iteration → state corruption
+Proposed Fix: Add this.isCleaningUp flag, skip concurrent cleanup
+Fix Effort: Low (3-4 lines)
+
+BUG-011: filePathSchema ALLOWS DOT FILES
+Location: src/utils/validators.ts:45-51
+Risk Level: LOW-MEDIUM
+Attack: Path ".ssh/id_rsa" passes validation
+Impact: Can access hidden directories
+Proposed Fix: Add .refine(path => !path.match(/^\.+/), 'Hidden files not allowed')
+Fix Effort: Low (1 line)
+
+BUG-012: DANGEROUS PATTERNS EVADE DETECTION
+Location: src/tools/scripting.ts:18-30
+Risk Level: MEDIUM
+Attack: "os .system()" (with space), "os['system']()", indirection
+Impact: Code blocking can be bypassed with minor syntax variations
+Proposed Fix: Use AST parsing instead of regex, or more comprehensive patterns
+Fix Effort: High (refactor to AST-based validation)
+
+================================================================================
+EDGE CASES & LOW SEVERITY ISSUES
+================================================================================
+
+EDGE-002: vector3Schema ACCEPTS NaN/INFINITY
+Location: src/utils/validators.ts:14-18
+Risk: [NaN, 0, 0] passes validation, crashes Blender
+Fix: Add .finite() constraint to all number validators
+
+EDGE-003: colorSchema ACCEPTS NaN
+Location: src/utils/validators.ts:23-28
+Risk: NaN comparisons always false, validation bypassed
+Fix: Add .finite() to color component validators
+
+BUG-013: tagsSchema ALLOWS EMPTY ARRAY
+Location: src/utils/validators.ts:168-175
+Risk: Behavioral ambiguity (is empty allowed?)
+Fix: Document expected behavior or add constraint
+
+BUG-014: base64Schema INSUFFICIENT VALIDATION
+Location: src/utils/validators.ts:133-136
+Risk: Invalid base64 structure accepted, decoding may fail
+Fix: Add structure validation (length % 4 check)
+
+BUG-015: CACHE HIT COUNT INTEGER OVERFLOW
+Location: src/utils/cache.ts:67-68
+Risk: After 2^53 hits, counter overflows (very unlikely)
+Fix: Add hit count capping
+
+================================================================================
+REMEDIATION PRIORITY MATRIX
+================================================================================
+
+IMMEDIATE (24 HOURS):
+1. BUG-001 (path traversal) - File system security
+2. BUG-003 (buffer overflow) - Process crash prevention
+3. BUG-004 (rate limit overflow) - Silent bypass prevention
+
+THIS WEEK:
+4. BUG-002 (cache injection) - DoS prevention
+5. BUG-005 (ReDoS) - Validation hang prevention
+6. BUG-007 (config bypass) - Config integrity
+
+THIS MONTH:
+7. BUG-006, BUG-008, BUG-009, BUG-010 (various issues)
+8. BUG-011, BUG-012 (pattern evasion)
+9. EDGE-002, EDGE-003 (NaN validation)
+
+FUTURE WORK:
+- Replace regex-based code validation with AST parsing
+- Add fuzzing to CI/CD pipeline
+- Conduct penetration testing on socket protocol
+- Review Blender addon source code
+- Audit external API integrations for injection points
+
+================================================================================
+UNRESOLVED QUESTIONS AFFECTING SEVERITY
+================================================================================
+
+1. Is the Blender addon trusted or untrusted?
+   → If untrusted, BUG-003 (buffer) is absolutely CRITICAL
+   → If trusted, it's MEDIUM priority
+
+2. What are actual file size limits?
+   → No mention of max file downloads
+   → Affects BUG-009 (timeout) and BUG-003 (buffer) priority
+
+3. Is code execution sandboxed?
+   → Affects BUG-005 (ReDoS) and BUG-012 (pattern evasion) severity
+   → If not sandboxed, these should be CRITICAL
+
+4. Are external API calls URL-encoded?
+   → Affects BUG-008 (search query injection) impact
+   → Need audit of all API integration points
+
+5. What's the deployment model?
+   → Local-only (low risk) vs Remote-exposed (high risk)
+   → Affects all injection bugs
+
+================================================================================
+DETAILED REPORT LOCATION
+================================================================================
+
+Full Report: researcher-02-security-validation.md (876 lines, 24KB)
+- Complete vulnerability analysis with code examples
+- Attack scenarios and PoC patterns
+- Proposed fixes for each bug
+- Edge case analysis
+- Threat model considerations
+- Remediation roadmap
+
+Generated: 2025-11-30 22:54 UTC
+================================================================================

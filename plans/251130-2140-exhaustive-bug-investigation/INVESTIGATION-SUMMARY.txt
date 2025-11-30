@@ -1,0 +1,132 @@
+================================================================================
+EXHAUSTIVE BUG INVESTIGATION - ClaudeKit Blender MCP
+Date: 2025-11-30
+Duration: Comprehensive security & validation audit
+================================================================================
+
+INVESTIGATION SCOPE:
+- Analyzed 6 core utility modules (validators, cache, rate-limiter, config, socket-client, logger)
+- Examined 10 tool implementations (files, scripting, assets, external-sources, import-export, etc)
+- Reviewed 5 test files for validation coverage
+- Evaluated security vulnerabilities, edge cases, buffer handling, cache logic, rate limiting
+
+CRITICAL FINDINGS: 8 bugs identified (Critical: 2, High: 4, Medium: 7+)
+
+CRITICAL SEVERITY (Immediate Risk):
+1. BUG-001: Path traversal validation bypass (filePathSchema)
+   - Relative path validation can be circumvented with encoding
+   - Allow arbitrary file read/write outside project boundary
+   
+2. BUG-003: Unbounded buffer accumulation in socket client
+   - No max size limit on JSON accumulation buffer
+   - Malicious server causes memory exhaustion & process crash
+   - Affects any large response handling
+
+HIGH SEVERITY (Significant Risk):
+3. BUG-002: Cache key collision via regex injection
+   - Unescaped regex in invalidatePattern() allows cache DoS
+   - Can invalidate critical cached values
+
+4. BUG-004: Integer overflow in rate limiting
+   - Float arithmetic without bounds checking
+   - Clock skew can bypass rate limits silently
+
+5. BUG-005: Regex DoS in code validation (scripting tool)
+   - Dangerous pattern detection uses loose regexes
+   - Code validation can hang for certain inputs
+
+6. BUG-007: Config validation bypass
+   - parseEnvNumber silently returns default for any invalid input
+   - Environment vars can override schema constraints
+
+MEDIUM SEVERITY (Moderate Risk):
+7. BUG-006: Cache TTL integer overflow (memory leak)
+8. BUG-008: Search query schema too permissive (downstream injection)
+9. BUG-009: Socket timeout not reset during data receive (large file failures)
+10. BUG-010: Rate limiter cleanup race condition (state corruption)
+11. BUG-011: filePathSchema allows dot files (.ssh/id_rsa)
+12. BUG-012: Dangerous patterns can be evaded (os.system → os .system)
+13-15. Edge case issues in validators (NaN/Infinity not rejected)
+
+DETAILED BREAKDOWN:
+
+Path Security (filePathSchema):
+- Current regex is blacklist-based, can be bypassed
+- No normalization/canonicalization before checks
+- Should validate against resolved canonical path
+
+Cache System Issues:
+- Regex injection (BUG-002): Need pattern escaping
+- TTL overflow (BUG-006): Need bounds on input values
+- Key collision risks with special characters in object names
+
+Rate Limiting Vulnerabilities:
+- Token calculation overflow (BUG-004): Float arithmetic unchecked
+- Cleanup race condition (BUG-010): No synchronization primitive
+- Concurrency counter can become negative under race conditions
+
+Socket Reliability:
+- Unbounded buffer (BUG-003): CRITICAL - 50MB recommended max
+- Timeout not reset (BUG-009): Large responses fail unnecessarily
+- No reconnection logic: Single network glitch fails operation
+
+Code Validation (scripting tool):
+- ReDoS patterns (BUG-005): Loose regex with backtracking
+- Evasion possible (BUG-012): Whitespace tricks bypass patterns
+- Should use AST parsing instead of regex for production use
+
+Configuration System:
+- Environment parsing doesn't validate schema constraints
+- Out-of-range values accepted silently
+- Needs re-validation after parsing
+
+Validators Edge Cases:
+- vector3/colorSchema accept NaN/Infinity (should reject)
+- base64Schema doesn't validate structure fully
+- tagsSchema behavior with empty array unclear
+
+DATA SOURCES:
+- /src/utils/validators.ts (185 lines) ✓
+- /src/utils/cache.ts (269 lines) ✓
+- /src/utils/rate-limiter.ts (247 lines) ✓
+- /src/utils/config.ts (208 lines) ✓
+- /src/utils/socket-client.ts (177 lines) ✓
+- /src/tools/files.ts (412 lines) ✓
+- /src/tools/scripting.ts (227 lines) ✓
+- /src/tools/assets.ts (319 lines) ✓
+- /src/tools/external-sources.ts (100+ lines) ✓
+- /src/tools/import-export.ts (100+ lines) ✓
+- /tests/*.test.ts (multiple test suites) ✓
+
+DETAILED REPORT:
+File: researcher-02-security-validation.md (876 lines, 24KB)
+- Full vulnerability analysis with code examples
+- Attack scenarios and proof-of-concept patterns
+- Proposed fixes for each bug
+- Unresolved questions about threat model
+- Priority matrix for remediation
+
+KEY RECOMMENDATIONS:
+1. IMMEDIATE: Deploy path traversal, buffer overflow, rate limiting fixes
+2. THIS WEEK: Fix cache injection, ReDoS patterns, config validation
+3. SHORT TERM: Add socket reconnection, validate edge cases (NaN/Infinity)
+4. ONGOING: Consider AST-based code validation, add fuzzing to CI/CD
+
+THREAT MODEL ASSUMPTIONS:
+- Blender addon is trusted (if not, BUG-003 is CRITICAL)
+- Local-only access (if remote exposed, all injection bugs are CRITICAL)
+- File system is outside project directory (if shared, path traversal is CRITICAL)
+
+RECOMMENDATIONS FOR NEXT INVESTIGATION:
+1. Review Blender addon source code for input validation
+2. Test actual file size limits and network conditions
+3. Analyze PolyHaven/Sketchfab API integration for injection points
+4. Review logging to ensure no sensitive data leakage
+5. Perform penetration testing on socket protocol
+
+================================================================================
+Report Location:
+/Users/leo/Documents/claudekit-blender-mcp/plans/251130-2140-exhaustive-bug-investigation/research/researcher-02-security-validation.md
+
+Investigation Complete: 2025-11-30 22:54 UTC
+================================================================================

@@ -51,6 +51,8 @@ export interface HealthStatus {
 }
 
 export interface MetricsSummary {
+  /** RACE_CONDITION_004 FIX: Timestamp when summary was generated */
+  timestamp: string;
   uptime: number;
   requests: {
     total: number;
@@ -167,16 +169,17 @@ class MetricsCollector {
     const currentCount = this.errors.errorTypes.get(category) || 0;
     this.errors.errorTypes.set(category, currentCount + 1);
 
+    // MEMORY_LEAK_004 FIX: Trim array BEFORE adding if at capacity
+    // This prevents temporary array growth to maxRecentErrors + 1
+    if (this.recentErrors.length >= this.maxRecentErrors) {
+      this.recentErrors.shift(); // Remove oldest first
+    }
+
     // Add to recent errors
     this.recentErrors.push({
       message: errorMessage,
       timestamp: Date.now()
     });
-
-    // Trim old errors
-    if (this.recentErrors.length > this.maxRecentErrors) {
-      this.recentErrors = this.recentErrors.slice(-this.maxRecentErrors);
-    }
 
     this.incrementCounter('error.total');
     this.incrementCounter(`error.${category}`);
@@ -251,9 +254,15 @@ class MetricsCollector {
 
   /**
    * Get comprehensive metrics summary
+   *
+   * RACE_CONDITION_004 FIX: Capture timestamp once at start for consistency.
+   * This prevents timing inconsistencies when concurrent timeOperation()
+   * calls modify metrics during summary generation.
    */
   getSummary(): MetricsSummary {
-    const uptime = Date.now() - this.startTime;
+    // Capture timestamp once at start for consistency
+    const now = Date.now();
+    const uptime = now - this.startTime;
 
     // Get tool metrics
     const tools: Record<string, ToolMetric> = {};
@@ -311,6 +320,8 @@ class MetricsCollector {
       : 0;
 
     return {
+      // RACE_CONDITION_004 FIX: Include timestamp for debugging and consistency
+      timestamp: new Date(now).toISOString(),
       uptime,
       requests: {
         total: successCount + failureCount,

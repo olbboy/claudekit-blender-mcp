@@ -166,12 +166,10 @@ class Logger {
 
     const formatted = this.formatEntry(entry);
 
-    // Use stderr for logging to not interfere with MCP stdio transport
-    if (level >= LogLevel.ERROR) {
-      console.error(formatted);
-    } else {
-      console.error(formatted);
-    }
+    // LOGGER_REDUNDANCY FIX: Use stderr for ALL logs to not interfere with MCP stdio transport.
+    // MCP protocol uses stdout for JSON-RPC communication, so all logs must go to stderr.
+    // This is intentional - DO NOT change to console.log() as it would break MCP.
+    console.error(formatted);
   }
 
   debug(message: string, context?: LogContext): void {

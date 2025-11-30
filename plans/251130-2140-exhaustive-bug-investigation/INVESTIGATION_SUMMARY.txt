@@ -1,0 +1,55 @@
+================================================================================
+EXHAUSTIVE BUG INVESTIGATION SUMMARY
+ClaudeKit Blender MCP Codebase
+Investigation Date: 2025-11-30
+================================================================================
+
+INVESTIGATION SCOPE
+- Files analyzed: 10 utility modules + index.ts + server.ts
+- Total lines of code reviewed: ~3500 LOC
+- Timeframe: Runtime, type safety, memory, race conditions, resource cleanup
+
+KEY STATISTICS
+- Total bugs identified: 18
+- Critical severity: 2
+- High severity: 5
+- Medium severity: 7
+- Low severity: 4
+
+CRITICAL ISSUES REQUIRING IMMEDIATE ATTENTION
+1. RACE_CONDITION_001 (connection-pool.ts)
+   - Connection pool acquire/release race condition
+   - Multiple threads can acquire same socket simultaneously
+   - Impact: Socket corruption, undefined behavior, data loss
+
+2. RUNTIME_001 (index.ts)
+   - Unhandled promise rejection in periodic health check
+   - Process crashes on health check failure
+   - Impact: Service unavailability, no graceful degradation
+
+HIGH-PRIORITY FINDINGS
+- Socket event listener accumulation (memory leak)
+- Health check connections left open (resource leak)
+- Type assertions without validation (crashes on malformed data)
+- RateLimiter interval orphaned on shutdown (resource leak)
+- Pending request queue race condition (dropped requests)
+
+DELIVERABLE
+Research report saved to:
+/Users/leo/Documents/claudekit-blender-mcp/plans/251130-2140-exhaustive-bug-investigation/research/researcher-01-runtime-types-memory.md
+
+Contains:
+- 18 detailed bug descriptions
+- Root cause analysis for each
+- Code examples showing the issue
+- Severity assessment
+- Proposed fixes with code samples
+- Summary table with categorization
+- Implementation recommendations
+
+NEXT STEPS
+1. Review bug descriptions for accuracy with development team
+2. Create tickets for each bug with severity labels
+3. Implement fixes following proposed solutions
+4. Add unit tests to prevent regression
+5. Conduct load testing to verify race condition fixes

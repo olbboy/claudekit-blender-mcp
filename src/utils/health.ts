@@ -73,22 +73,25 @@ let isShuttingDown = false;
 
 /**
  * Check Blender connection health
+ *
+ * ASYNC_RACE_003 FIX: Always disconnect in finally block to prevent
+ * orphaned connections when health check fails or errors.
+ *
  * @returns Component health result
  */
 async function checkBlenderConnection(): Promise<ComponentHealth> {
   const startTime = Date.now();
   const config = getConfig();
 
-  try {
-    const client = new BlenderSocketClient(
-      config.blender.host,
-      config.blender.port,
-      5000 // Short timeout for health check
-    );
+  const client = new BlenderSocketClient(
+    config.blender.host,
+    config.blender.port,
+    5000 // Short timeout for health check
+  );
 
+  try {
     await client.connect();
     const response = await client.sendCommand('get_scene_info');
-    await client.disconnect();
 
     const responseTime = Date.now() - startTime;
 
@@ -122,6 +125,19 @@ async function checkBlenderConnection(): Promise<ComponentHealth> {
         port: config.blender.port
       }
     };
+  } finally {
+    // ASYNC_RACE_003 FIX: Always disconnect, even if error occurs
+    try {
+      await client.disconnect();
+    } catch (disconnectError) {
+      // Log but don't rethrow - health check result already determined
+      logger.debug('Error disconnecting health check client', {
+        operation: 'checkBlenderConnection',
+        error: disconnectError instanceof Error
+          ? disconnectError.message
+          : String(disconnectError)
+      });
+    }
   }
 }
 
@@ -367,22 +383,34 @@ export async function gracefulShutdown(signal: string, exitCode = 0): Promise<vo
 
 /**
  * Setup process signal handlers for graceful shutdown
+ *
+ * UNHANDLED_PROMISE_001 FIX: Wrap signal handlers in async IIFE to properly await
+ * gracefulShutdown(), ensuring cleanup completes before process exits.
  */
 export function setupGracefulShutdown(): void {
   // Handle SIGTERM (docker stop, kubernetes termination)
   process.on('SIGTERM', () => {
-    gracefulShutdown('SIGTERM');
+    // UNHANDLED_PROMISE_001 FIX: Wrap in async IIFE to await gracefulShutdown
+    void (async () => {
+      await gracefulShutdown('SIGTERM');
+    })();
   });
 
   // Handle SIGINT (Ctrl+C)
   process.on('SIGINT', () => {
-    gracefulShutdown('SIGINT');
+    // UNHANDLED_PROMISE_001 FIX: Wrap in async IIFE to await gracefulShutdown
+    void (async () => {
+      await gracefulShutdown('SIGINT');
+    })();
   });
 
   // Handle uncaught exceptions
   process.on('uncaughtException', (error) => {
     logger.error('Uncaught exception', error);
-    gracefulShutdown('uncaughtException', 1);
+    // UNHANDLED_PROMISE_001 FIX: Wrap in async IIFE to await gracefulShutdown
+    void (async () => {
+      await gracefulShutdown('uncaughtException', 1);
+    })();
   });
 
   // Handle unhandled promise rejections
@@ -390,7 +418,10 @@ export function setupGracefulShutdown(): void {
     logger.error('Unhandled rejection', reason instanceof Error ? reason : new Error(String(reason)), {
       promise: String(promise)
     });
-    gracefulShutdown('unhandledRejection', 1);
+    // UNHANDLED_PROMISE_001 FIX: Wrap in async IIFE to await gracefulShutdown
+    void (async () => {
+      await gracefulShutdown('unhandledRejection', 1);
+    })();
   });
 
   logger.info('Graceful shutdown handlers registered');

@@ -17,8 +17,30 @@ import {
   setupGracefulShutdown,
   registerShutdownHandler,
   performHealthCheck,
-  getUptime
+  getUptime,
+  HealthStatus
 } from './utils/health.js';
+import { getMetrics } from './utils/metrics.js';
+
+/**
+ * Health check interval in milliseconds (5 minutes)
+ * Can be overridden by HEALTH_CHECK_INTERVAL_MS environment variable
+ */
+const HEALTH_CHECK_INTERVAL_MS = parseInt(
+  process.env.HEALTH_CHECK_INTERVAL_MS || '300000',
+  10
+);
+
+/**
+ * Reference to health check interval for cleanup on shutdown
+ */
+let healthCheckInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Counter for consecutive health check failures (for alerting)
+ */
+let consecutiveHealthCheckFailures = 0;
+const MAX_CONSECUTIVE_FAILURES_BEFORE_WARN = 3;
 
 /**
  * Main entry point for the ClaudeKit Blender MCP Server
@@ -53,21 +75,82 @@ async function main(): Promise<void> {
 
   await server.connect(transport);
 
-  // Log startup health status
-  const health = await performHealthCheck(false);
+  // Perform initial health check
+  const initialHealth = await performHealthCheck(false);
   logger.info('ClaudeKit Blender MCP Server running on stdio transport', {
-    status: health.status,
-    version: health.version
+    status: initialHealth.status,
+    version: initialHealth.version
   });
 
-  // Log periodic health status (every 5 minutes)
-  setInterval(async () => {
-    const uptime = getUptime();
-    logger.debug('Server health check', {
-      uptime: uptime.formatted,
-      ...health.metrics
-    });
-  }, 300000);
+  // Start periodic health check with proper error handling (RUNTIME_001 fix)
+  healthCheckInterval = setInterval(async () => {
+    try {
+      const uptime = getUptime();
+
+      // Perform FRESH health check - not using stale data
+      const currentHealth = await performHealthCheck(false);
+
+      // Reset failure counter on success
+      consecutiveHealthCheckFailures = 0;
+
+      logger.debug('Periodic health check', {
+        uptime: uptime.formatted,
+        status: currentHealth.status,
+        components: currentHealth.components.length
+      });
+
+      // Warn on degraded/unhealthy status
+      if (currentHealth.status === HealthStatus.UNHEALTHY) {
+        logger.warn('Service unhealthy', {
+          components: currentHealth.components
+            .filter(c => c.status === HealthStatus.UNHEALTHY)
+            .map(c => c.name)
+        });
+      } else if (currentHealth.status === HealthStatus.DEGRADED) {
+        logger.warn('Service degraded', {
+          components: currentHealth.components
+            .filter(c => c.status === HealthStatus.DEGRADED)
+            .map(c => c.name)
+        });
+      }
+
+    } catch (error) {
+      // CRITICAL: Log error but DO NOT crash server (RUNTIME_001 fix)
+      consecutiveHealthCheckFailures++;
+
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      logger.error('Health check failed', error instanceof Error ? error : new Error(errorMessage), {
+        consecutiveFailures: consecutiveHealthCheckFailures,
+        operation: 'periodic_health_check'
+      });
+
+      // Record metric for monitoring
+      try {
+        getMetrics().recordError('health_check_failure');
+      } catch {
+        // Ignore metric recording failures
+      }
+
+      // Escalate warning after multiple consecutive failures
+      if (consecutiveHealthCheckFailures >= MAX_CONSECUTIVE_FAILURES_BEFORE_WARN) {
+        logger.warn('Multiple consecutive health check failures', {
+          consecutiveFailures: consecutiveHealthCheckFailures,
+          lastError: errorMessage
+        });
+      }
+    }
+  }, HEALTH_CHECK_INTERVAL_MS);
+
+  // Register shutdown handler to clear health check interval
+  registerShutdownHandler('health-check-interval', async () => {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+      healthCheckInterval = null;
+      logger.debug('Health check interval cleared');
+    }
+  }, 5); // Higher priority (lower number) to clear early
 }
 
 main().catch((error) => {

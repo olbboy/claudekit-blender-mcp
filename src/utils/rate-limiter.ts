@@ -32,18 +32,43 @@ class RateLimiter {
   private concurrency: ConcurrencyTracker;
   private config = getRateLimitConfig();
 
+  /**
+   * MEMORY_LEAK_003 FIX: Store cleanup timer reference for proper shutdown
+   */
+  private cleanupTimer: NodeJS.Timeout | null = null;
+
+  /**
+   * BUG-010 FIX: Flag to prevent concurrent cleanup operations
+   */
+  private isCleaningUp = false;
+
   constructor() {
     this.concurrency = {
       current: 0,
       max: this.config.maxConcurrentRequests
     };
 
-    // Cleanup old buckets periodically
-    setInterval(() => this.cleanup(), 60000);
+    // MEMORY_LEAK_003 FIX: Store timer reference for cleanup on shutdown
+    this.cleanupTimer = setInterval(() => this.cleanup(), 60000);
+  }
+
+  /**
+   * Shutdown the rate limiter and clean up resources
+   * MEMORY_LEAK_003 FIX: Properly clears the cleanup interval
+   */
+  shutdown(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+      logger.debug('Rate limiter shutdown complete');
+    }
   }
 
   /**
    * Check if a request should be allowed based on rate limits
+   *
+   * BUG-004 FIX: Added bounds checking and finite number validation
+   * to prevent integer overflow under clock skew or extreme values.
    */
   checkLimit(key: string, maxPerMinute?: number): RateLimitResult {
     if (!this.config.enabled) {
@@ -54,10 +79,30 @@ class RateLimiter {
     const now = Date.now();
     const bucket = this.getBucket(key, limit);
 
-    // Refill tokens based on time passed
-    const timePassed = now - bucket.lastRefill;
+    // BUG-004 FIX: Prevent negative time passed (clock skew)
+    const timePassed = Math.max(0, now - bucket.lastRefill);
     const tokensToAdd = (timePassed / 60000) * limit;
-    bucket.tokens = Math.min(limit, bucket.tokens + tokensToAdd);
+
+    // BUG-004 FIX: Validate finite number to prevent NaN/Infinity bypass
+    if (!Number.isFinite(tokensToAdd)) {
+      logger.warn('Invalid token calculation, resetting bucket', {
+        operation: 'checkLimit',
+        key,
+        timePassed,
+        tokensToAdd,
+        limit
+      });
+      // Reset bucket to limit to prevent bypass
+      bucket.tokens = limit;
+      bucket.lastRefill = now;
+      return { allowed: true, remainingTokens: Math.floor(bucket.tokens) - 1 };
+    }
+
+    // Calculate new token count with bounds
+    const newTokens = Math.min(limit, bucket.tokens + tokensToAdd);
+
+    // BUG-004 FIX: Final safety check for NaN/Infinity
+    bucket.tokens = Number.isFinite(newTokens) ? newTokens : limit;
     bucket.lastRefill = now;
 
     if (bucket.tokens < 1) {
@@ -134,6 +179,8 @@ class RateLimiter {
 
   /**
    * Release a concurrency slot
+   *
+   * BUG-010 FIX: Added guard against negative concurrency counter
    */
   releaseConcurrency(): void {
     if (!this.config.enabled) {
@@ -146,6 +193,15 @@ class RateLimiter {
         current: this.concurrency.current,
         max: this.concurrency.max
       });
+    } else {
+      // BUG-010 FIX: Should never happen, log corruption
+      logger.error('Concurrency counter corrupted (negative release attempted)', undefined, {
+        operation: 'releaseConcurrency',
+        current: this.concurrency.current,
+        max: this.concurrency.max
+      });
+      // Reset to 0 to prevent further issues
+      this.concurrency.current = 0;
     }
   }
 
@@ -209,19 +265,48 @@ class RateLimiter {
     return bucket;
   }
 
+  /**
+   * Clean up stale buckets
+   *
+   * BUG-010 FIX: Added mutex flag to prevent concurrent cleanup
+   * which could cause iterator issues or data corruption.
+   */
   private cleanup(): void {
-    const now = Date.now();
-    const staleThreshold = 5 * 60 * 1000; // 5 minutes
-
-    for (const [key, bucket] of this.buckets.entries()) {
-      if (now - bucket.lastRefill > staleThreshold) {
-        this.buckets.delete(key);
-      }
+    // BUG-010 FIX: Prevent concurrent cleanup
+    if (this.isCleaningUp) {
+      return;
     }
 
-    logger.debug('Rate limiter cleanup completed', {
-      remainingBuckets: this.buckets.size
-    });
+    this.isCleaningUp = true;
+
+    try {
+      const now = Date.now();
+      const staleThreshold = 5 * 60 * 1000; // 5 minutes
+
+      // BUG-010 FIX: Collect keys to delete to avoid iterator issues
+      const keysToDelete: string[] = [];
+
+      for (const [key, bucket] of this.buckets.entries()) {
+        if (now - bucket.lastRefill > staleThreshold) {
+          keysToDelete.push(key);
+        }
+      }
+
+      // Delete in separate loop to avoid iterator mutation issues
+      for (const key of keysToDelete) {
+        this.buckets.delete(key);
+      }
+
+      if (keysToDelete.length > 0) {
+        logger.debug('Rate limiter cleanup completed', {
+          operation: 'cleanup',
+          deletedBuckets: keysToDelete.length,
+          remainingBuckets: this.buckets.size
+        });
+      }
+    } finally {
+      this.isCleaningUp = false;
+    }
   }
 
   /**

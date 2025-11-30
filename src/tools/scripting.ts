@@ -14,19 +14,49 @@ const securityConfig = getSecurityConfig();
 const MAX_CODE_SIZE = securityConfig.maxCodeSize;
 const DEFAULT_TIMEOUT = securityConfig.codeExecutionTimeout;
 
-// Dangerous patterns that should be blocked or warned about
+/**
+ * Dangerous patterns that should be blocked or warned about
+ *
+ * BUG-005 FIX: Use bounded quantifiers ({0,10}) instead of unbounded (*+)
+ * to prevent catastrophic backtracking (ReDoS attacks).
+ * Patterns are reordered for early failure on common cases.
+ *
+ * BUG-012 FIX: Enhanced patterns to detect evasion techniques:
+ * - Whitespace-tolerant patterns (os . system)
+ * - Bracket notation access (globals()['system'])
+ * - Builtins access (__builtins__)
+ * - File deletion operations (unlink, remove)
+ */
 const DANGEROUS_PATTERNS = [
-  { pattern: /\bos\.system\s*\(/i, description: 'System command execution' },
-  { pattern: /\bsubprocess\./i, description: 'Subprocess execution' },
-  { pattern: /\b__import__\s*\(/i, description: 'Dynamic import' },
-  { pattern: /\beval\s*\(/i, description: 'Eval execution' },
-  { pattern: /\bexec\s*\(/i, description: 'Exec execution' },
-  { pattern: /\bopen\s*\([^)]*['"][wa]/i, description: 'File write operation' },
+  // BUG-005 + BUG-012 FIX: Whitespace-tolerant patterns
+  { pattern: /\bos\s{0,5}\.\s{0,5}system/i, description: 'OS system call' },
+  { pattern: /\bsubprocess\s{0,5}\.\s{0,5}\w+/i, description: 'Subprocess module' },
+  { pattern: /\b__import__\s{0,10}\(/i, description: 'Dynamic import' },
+  { pattern: /\beval\s{0,10}\(/i, description: 'Eval call' },
+  { pattern: /\bexec\s{0,10}\(/i, description: 'Exec call' },
+  { pattern: /\bopen\s{0,10}\([^)]{0,50}['"][wa]/i, description: 'File write operation' },
   { pattern: /\brm\s+-rf/i, description: 'Destructive file operation' },
-  { pattern: /\bshutil\.rmtree/i, description: 'Recursive directory deletion' },
-  { pattern: /\bsocket\./i, description: 'Network socket access' },
-  { pattern: /\burllib\./i, description: 'Network URL access' },
-  { pattern: /\brequests\./i, description: 'HTTP requests library' }
+  { pattern: /\bshutil\s{0,5}\.\s{0,5}rmtree/i, description: 'Recursive directory deletion' },
+  { pattern: /\bsocket\s{0,5}\./i, description: 'Network socket access' },
+  { pattern: /\burllib\s{0,5}\./i, description: 'Network URL access' },
+  { pattern: /\brequests\s{0,5}\./i, description: 'HTTP requests library' },
+
+  // BUG-012 FIX: Builtins access (evasion technique)
+  { pattern: /\b__builtins__/i, description: 'Builtins access' },
+  { pattern: /\bglobals\s{0,5}\(\s{0,5}\)/i, description: 'Globals access' },
+  { pattern: /\bgetattr\s{0,5}\(/i, description: 'Dynamic attribute access' },
+
+  // BUG-012 FIX: Bracket notation (evasion technique)
+  { pattern: /\[\s{0,5}['"]system['"]\s{0,5}\]/i, description: 'Bracket system access' },
+  { pattern: /\[\s{0,5}['"]eval['"]\s{0,5}\]/i, description: 'Bracket eval access' },
+  { pattern: /\[\s{0,5}['"]exec['"]\s{0,5}\]/i, description: 'Bracket exec access' },
+  { pattern: /\[\s{0,5}['"]__import__['"]\s{0,5}\]/i, description: 'Bracket import access' },
+
+  // BUG-012 FIX: File deletion operations
+  { pattern: /\bos\s{0,5}\.\s{0,5}unlink/i, description: 'File deletion (unlink)' },
+  { pattern: /\bos\s{0,5}\.\s{0,5}remove/i, description: 'File removal' },
+  { pattern: /\bos\s{0,5}\.\s{0,5}rmdir/i, description: 'Directory removal' },
+  { pattern: /\bpathlib\s{0,5}\..*\.unlink/i, description: 'Pathlib file deletion' }
 ];
 
 // Validate code for dangerous patterns
@@ -37,13 +67,39 @@ interface SecurityValidation {
   blockedReason?: string;
 }
 
+/**
+ * Validate code for security concerns
+ *
+ * BUG-005 FIX: Added size limit check BEFORE regex matching to prevent
+ * ReDoS attacks on very large inputs.
+ */
 function validateCodeSecurity(code: string): SecurityValidation {
   const warnings: string[] = [];
 
+  // BUG-005 FIX: Size limit before regex to prevent ReDoS
+  if (code.length > MAX_CODE_SIZE) {
+    return {
+      isValid: false,
+      warnings: [],
+      blocked: true,
+      blockedReason: `Code exceeds maximum size: ${MAX_CODE_SIZE} characters`
+    };
+  }
+
   // Check for dangerous patterns
+  // BUG-005 FIX: Wrap in try-catch for additional safety
   for (const { pattern, description } of DANGEROUS_PATTERNS) {
-    if (pattern.test(code)) {
-      warnings.push(`Warning: Code contains ${description}`);
+    try {
+      if (pattern.test(code)) {
+        warnings.push(`Warning: Code contains ${description}`);
+      }
+    } catch (error) {
+      // Log regex error but continue checking other patterns
+      logger.warn('Regex validation error', {
+        operation: 'validateCodeSecurity',
+        pattern: pattern.source,
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
