@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBlenderClient } from '../utils/socket-client.js';
 import { vector3Schema, objectNameSchema } from '../utils/validators.js';
+import { handleBlenderResponse, handleCaughtError, createSuccessResponse } from '../utils/error-helpers.js';
 import type { ToolResult } from '../types/index.js';
 
 // Primitive types enum
@@ -66,24 +67,10 @@ Don't use when: Need complex custom geometry (use execute_blender_code instead)`
       try {
         const client = getBlenderClient();
         const response = await client.sendCommand('create_primitive', params);
-
-        if (response.status === 'error') {
-          return {
-            content: [{ type: 'text', text: `Error: ${response.message}` }]
-          };
-        }
-
-        return {
-          content: [{
-            type: 'text',
-            text: `Successfully created ${params.primitive_type} primitive${params.name ? ` named "${params.name}"` : ''}`
-          }]
-        };
-
+        const successMsg = `Successfully created ${params.primitive_type} primitive${params.name ? ` named "${params.name}"` : ''}`;
+        return handleBlenderResponse(response, successMsg, 'Failed to create primitive');
       } catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }]
-        };
+        return handleCaughtError(error);
       }
     }
   );
@@ -122,21 +109,9 @@ Don't use when: Creating new objects (use create_primitive instead)`,
       try {
         const client = getBlenderClient();
         const response = await client.sendCommand('modify_object', params);
-
-        if (response.status === 'error') {
-          return {
-            content: [{ type: 'text', text: `Error: ${response.message}` }]
-          };
-        }
-
-        return {
-          content: [{ type: 'text', text: `Successfully modified object "${params.object_name}"` }]
-        };
-
+        return handleBlenderResponse(response, `Successfully modified object "${params.object_name}"`, 'Failed to modify object');
       } catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }]
-        };
+        return handleCaughtError(error);
       }
     }
   );
@@ -174,21 +149,9 @@ Error: "Object not found" if object doesn't exist`,
         const response = await client.sendCommand('delete_object', {
           object_name: params.object_name
         });
-
-        if (response.status === 'error') {
-          return {
-            content: [{ type: 'text', text: `Error: ${response.message}` }]
-          };
-        }
-
-        return {
-          content: [{ type: 'text', text: `Successfully deleted object "${params.object_name}"` }]
-        };
-
+        return handleBlenderResponse(response, `Successfully deleted object "${params.object_name}"`, 'Object not found');
       } catch (error) {
-        return {
-          content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }]
-        };
+        return handleCaughtError(error);
       }
     }
   );

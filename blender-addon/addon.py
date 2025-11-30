@@ -124,58 +124,130 @@ class BlenderMCPServer:
         print("Server thread stopped")
 
     def _handle_client(self, client):
-        """Handle connected client"""
+        """Handle connected client with improved buffering and stability"""
         print("Client handler started")
-        client.settimeout(None)  # No timeout
+
+        # Configure socket for better stability
+        client.settimeout(300.0)  # 5 minute timeout for long operations
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+        # Large buffer for handling big messages (scripts, etc.)
+        RECV_BUFFER_SIZE = 65536  # 64KB buffer
+        MAX_MESSAGE_SIZE = 10 * 1024 * 1024  # 10MB max message size
+
         buffer = b''
+        response_event = threading.Event()
+        response_result = {'data': None, 'error': None}
 
         try:
             while self.running:
-                # Receive data
+                # Receive data with larger buffer
                 try:
-                    data = client.recv(8192)
+                    data = client.recv(RECV_BUFFER_SIZE)
                     if not data:
-                        print("Client disconnected")
+                        print("Client disconnected (no data)")
                         break
 
                     buffer += data
-                    try:
-                        # Try to parse command
-                        command = json.loads(buffer.decode('utf-8'))
+
+                    # Safety check: prevent memory exhaustion
+                    if len(buffer) > MAX_MESSAGE_SIZE:
+                        print(f"Message too large ({len(buffer)} bytes), rejecting")
                         buffer = b''
+                        error_response = {
+                            "status": "error",
+                            "message": f"Message exceeds maximum size of {MAX_MESSAGE_SIZE} bytes"
+                        }
+                        client.sendall(json.dumps(error_response).encode('utf-8'))
+                        continue
+
+                    # Try to parse complete JSON message
+                    try:
+                        message_str = buffer.decode('utf-8')
+                        command = json.loads(message_str)
+                        buffer = b''  # Clear buffer after successful parse
+
+                        print(f"Received command: {command.get('type', 'unknown')} ({len(message_str)} bytes)")
+
+                        # Reset event for this request
+                        response_event.clear()
+                        response_result['data'] = None
+                        response_result['error'] = None
 
                         # Execute command in Blender's main thread
                         def execute_wrapper():
                             try:
                                 response = self.execute_command(command)
-                                response_json = json.dumps(response)
-                                try:
-                                    client.sendall(response_json.encode('utf-8'))
-                                except:
-                                    print("Failed to send response - client disconnected")
+                                response_result['data'] = response
                             except Exception as e:
                                 print(f"Error executing command: {str(e)}")
                                 traceback.print_exc()
-                                try:
-                                    error_response = {
-                                        "status": "error",
-                                        "message": str(e)
-                                    }
-                                    client.sendall(json.dumps(error_response).encode('utf-8'))
-                                except:
-                                    pass
+                                response_result['error'] = str(e)
+                            finally:
+                                response_event.set()
                             return None
 
                         # Schedule execution in main thread
                         bpy.app.timers.register(execute_wrapper, first_interval=0.0)
+
+                        # Wait for execution to complete (with timeout)
+                        if response_event.wait(timeout=300.0):  # 5 minute timeout
+                            if response_result['error']:
+                                response_json = json.dumps({
+                                    "status": "error",
+                                    "message": response_result['error']
+                                })
+                            else:
+                                response_json = json.dumps(response_result['data'])
+
+                            # Send response in chunks if large
+                            response_bytes = response_json.encode('utf-8')
+                            try:
+                                client.sendall(response_bytes)
+                                print(f"Sent response ({len(response_bytes)} bytes)")
+                            except Exception as send_err:
+                                print(f"Failed to send response: {send_err}")
+                                break
+                        else:
+                            # Timeout waiting for execution
+                            print("Command execution timeout (300s)")
+                            timeout_response = json.dumps({
+                                "status": "error",
+                                "message": "Command execution timeout (300 seconds)"
+                            })
+                            try:
+                                client.sendall(timeout_response.encode('utf-8'))
+                            except:
+                                pass
+
                     except json.JSONDecodeError:
-                        # Incomplete data, wait for more
+                        # Incomplete JSON data, wait for more chunks
+                        # This is normal for large messages
                         pass
+                    except UnicodeDecodeError as ude:
+                        print(f"Unicode decode error: {ude}")
+                        buffer = b''  # Reset buffer on decode error
+
+                except socket.timeout:
+                    # Socket timeout - check if we should continue
+                    if not self.running:
+                        break
+                    # Otherwise continue waiting
+                    continue
+                except ConnectionResetError:
+                    print("Connection reset by client")
+                    break
+                except BrokenPipeError:
+                    print("Broken pipe - client disconnected")
+                    break
                 except Exception as e:
                     print(f"Error receiving data: {str(e)}")
+                    traceback.print_exc()
                     break
+
         except Exception as e:
             print(f"Error in client handler: {str(e)}")
+            traceback.print_exc()
         finally:
             try:
                 client.close()
@@ -209,6 +281,7 @@ class BlenderMCPServer:
             "get_object_info": self.get_object_info,
             "get_viewport_screenshot": self.get_viewport_screenshot,
             "execute_code": self.execute_code,
+            "execute_blender_code": self.execute_code,  # Alias for MCP compatibility
             # Object manipulation (P0/P1 priority)
             "create_primitive": self.create_primitive,
             "modify_object": self.modify_object,

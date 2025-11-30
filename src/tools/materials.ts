@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBlenderClient } from '../utils/socket-client.js';
 import { objectNameSchema, colorSchema } from '../utils/validators.js';
+import { handleBlenderResponse, handleCaughtError } from '../utils/error-helpers.js';
 import type { ToolResult } from '../types/index.js';
 
 const CreateMaterialSchema = z.object({
@@ -57,16 +58,9 @@ Example: { material_name: "RedMetal", base_color: [0.8, 0.1, 0.1, 1], metallic: 
       try {
         const client = getBlenderClient();
         const response = await client.sendCommand('create_material', params);
-
-        if (response.status === 'error') {
-          return { content: [{ type: 'text', text: `Error: ${response.message}` }] };
-        }
-
-        return {
-          content: [{ type: 'text', text: `Successfully created material "${params.material_name}"` }]
-        };
+        return handleBlenderResponse(response, `Successfully created material "${params.material_name}"`, 'Failed to create material');
       } catch (error) {
-        return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown'}` }] };
+        return handleCaughtError(error);
       }
     }
   );
@@ -100,16 +94,13 @@ Don't use when: Material doesn't exist (create it first)`,
       try {
         const client = getBlenderClient();
         const response = await client.sendCommand('apply_material', params);
-
-        if (response.status === 'error') {
-          return { content: [{ type: 'text', text: `Error: ${response.message}` }] };
-        }
-
-        return {
-          content: [{ type: 'text', text: `Successfully applied material "${params.material_name}" to object "${params.object_name}"` }]
-        };
+        return handleBlenderResponse(
+          response,
+          `Successfully applied material "${params.material_name}" to object "${params.object_name}"`,
+          'Material or object not found'
+        );
       } catch (error) {
-        return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown'}` }] };
+        return handleCaughtError(error);
       }
     }
   );
@@ -145,16 +136,13 @@ Examples:
       try {
         const client = getBlenderClient();
         const response = await client.sendCommand('set_material_property', params);
-
-        if (response.status === 'error') {
-          return { content: [{ type: 'text', text: `Error: ${response.message}` }] };
-        }
-
-        return {
-          content: [{ type: 'text', text: `Successfully set ${params.property} for material "${params.material_name}"` }]
-        };
+        return handleBlenderResponse(
+          response,
+          `Successfully set ${params.property} for material "${params.material_name}"`,
+          'Material not found'
+        );
       } catch (error) {
-        return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown'}` }] };
+        return handleCaughtError(error);
       }
     }
   );

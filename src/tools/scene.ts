@@ -3,6 +3,10 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getBlenderClient } from '../utils/socket-client.js';
 import { ResponseFormat, type ToolResult } from '../types/index.js';
 import { formatResponse, formatSceneInfoMarkdown, formatObjectInfoMarkdown } from '../utils/formatters.js';
+import { createErrorResponse, handleCaughtError, getErrorMessage } from '../utils/error-helpers.js';
+import { getCache, ResponseCache } from '../utils/cache.js';
+import { getCacheConfig } from '../utils/config.js';
+import { logger } from '../utils/logger.js';
 
 // Schemas
 const GetSceneInfoSchema = z.object({
@@ -49,17 +53,27 @@ Don't use when: Modifying scene (use create/modify tools instead)`,
     },
     async (params): Promise<ToolResult> => {
       try {
+        const cache = getCache();
+        const cacheConfig = getCacheConfig();
+        const cacheKey = ResponseCache.keys.sceneInfo();
+
+        // Try cache first
+        const cached = cache.get<unknown>(cacheKey);
+        if (cached !== undefined) {
+          logger.debug('Returning cached scene info', { tool: 'blender_get_scene_info' });
+          const formatted = formatResponse(cached, params.response_format, formatSceneInfoMarkdown);
+          return { content: [{ type: 'text', text: formatted }] };
+        }
+
         const client = getBlenderClient();
         const response = await client.sendCommand('get_scene_info');
 
         if (response.status === 'error') {
-          return {
-            content: [{
-              type: 'text',
-              text: `Error: ${response.message || 'Failed to get scene info'}`
-            }]
-          };
+          return createErrorResponse(getErrorMessage(response, 'Failed to get scene info'));
         }
+
+        // Cache the result
+        cache.set(cacheKey, response.result, cacheConfig.sceneInfoTtl);
 
         const formatted = formatResponse(
           response.result,
@@ -72,12 +86,7 @@ Don't use when: Modifying scene (use create/modify tools instead)`,
         };
 
       } catch (error) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-          }]
-        };
+        return handleCaughtError(error);
       }
     }
   );
@@ -113,19 +122,32 @@ Error: Returns "Object not found" if object_name doesn't exist`,
     },
     async (params): Promise<ToolResult> => {
       try {
+        const cache = getCache();
+        const cacheConfig = getCacheConfig();
+        const cacheKey = ResponseCache.keys.objectInfo(params.object_name);
+
+        // Try cache first
+        const cached = cache.get<unknown>(cacheKey);
+        if (cached !== undefined) {
+          logger.debug('Returning cached object info', {
+            tool: 'blender_get_object_info',
+            objectName: params.object_name
+          });
+          const formatted = formatResponse(cached, params.response_format, formatObjectInfoMarkdown);
+          return { content: [{ type: 'text', text: formatted }] };
+        }
+
         const client = getBlenderClient();
         const response = await client.sendCommand('get_object_info', {
           object_name: params.object_name
         });
 
         if (response.status === 'error') {
-          return {
-            content: [{
-              type: 'text',
-              text: `Error: ${response.message || 'Failed to get object info'}`
-            }]
-          };
+          return createErrorResponse(getErrorMessage(response, 'Object not found'));
         }
+
+        // Cache the result
+        cache.set(cacheKey, response.result, cacheConfig.objectInfoTtl);
 
         const formatted = formatResponse(
           response.result,
@@ -138,12 +160,7 @@ Error: Returns "Object not found" if object_name doesn't exist`,
         };
 
       } catch (error) {
-        return {
-          content: [{
-            type: 'text',
-            text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-          }]
-        };
+        return handleCaughtError(error);
       }
     }
   );

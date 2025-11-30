@@ -103,14 +103,26 @@ export interface ExportOptions {
   compression?: number;
 }
 
+// Content types for MCP tool results
+export interface TextContent {
+  type: 'text';
+  text: string;
+  _meta?: Record<string, unknown>;
+}
+
+export interface ImageContent {
+  type: 'image';
+  data: string; // Base64 encoded image data
+  mimeType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+  _meta?: Record<string, unknown>;
+}
+
+export type ToolContent = TextContent | ImageContent;
+
 // ToolResult interface matching MCP SDK CallToolResult structure
 export interface ToolResult {
   [x: string]: unknown;
-  content: Array<{
-    type: 'text';
-    text: string;
-    _meta?: Record<string, unknown>;
-  }>;
+  content: ToolContent[];
   _meta?: Record<string, unknown>;
   structuredContent?: Record<string, unknown>;
   isError?: boolean;
