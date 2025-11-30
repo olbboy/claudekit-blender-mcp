@@ -39,7 +39,7 @@ Performance: Larger images take longer to process and transfer`,
     async (params): Promise<ToolResult> => {
       try {
         const client = getBlenderClient();
-        const response = await client.sendCommand('get_screenshot', {
+        const response = await client.sendCommand('get_viewport_screenshot', {
           max_size: params.max_size
         });
 

@@ -224,6 +224,16 @@ class BlenderMCPServer:
             # File operations
             "save_file": self.save_file,
             "render_scene": self.render_scene,
+            # File system operations
+            "get_project_directory": self.get_project_directory,
+            "list_files": self.list_files,
+            "create_directory": self.create_directory,
+            # Import/Export operations
+            "import_asset": self.import_asset,
+            "export_asset": self.export_asset,
+            "get_supported_formats": self.get_supported_formats,
+            "optimize_asset": self.optimize_asset,
+            "organize_assets_by_type": self.organize_assets_by_type,
             # Status checks
             "get_polyhaven_status": self.get_polyhaven_status,
             "get_hyper3d_status": self.get_hyper3d_status,
@@ -921,6 +931,383 @@ class BlenderMCPServer:
 
         except Exception as e:
             raise Exception(f"Failed to render scene: {str(e)}")
+
+    # ========================================
+    # FILE SYSTEM OPERATIONS
+    # ========================================
+
+    def get_project_directory(self):
+        """Get the current project directory (where .blend file is saved)"""
+        try:
+            filepath = bpy.data.filepath
+            if filepath:
+                project_dir = os.path.dirname(filepath)
+                return {
+                    "project_directory": project_dir,
+                    "blend_file": os.path.basename(filepath),
+                    "exists": os.path.isdir(project_dir)
+                }
+            else:
+                # File not saved yet, return temp directory
+                temp_dir = tempfile.gettempdir()
+                return {
+                    "project_directory": temp_dir,
+                    "blend_file": None,
+                    "exists": True,
+                    "note": "File not saved. Using temp directory."
+                }
+        except Exception as e:
+            raise Exception(f"Failed to get project directory: {str(e)}")
+
+    def list_files(self, directory=None, pattern=None, recursive=False):
+        """List files in a directory with optional filtering"""
+        try:
+            # Use project directory if not specified
+            if not directory:
+                filepath = bpy.data.filepath
+                if filepath:
+                    directory = os.path.dirname(filepath)
+                else:
+                    directory = tempfile.gettempdir()
+
+            if not os.path.isdir(directory):
+                raise ValueError(f"Directory not found: {directory}")
+
+            files = []
+            if recursive:
+                for root, dirs, filenames in os.walk(directory):
+                    for filename in filenames:
+                        if pattern:
+                            import fnmatch
+                            if fnmatch.fnmatch(filename.lower(), pattern.lower()):
+                                files.append(os.path.join(root, filename))
+                        else:
+                            files.append(os.path.join(root, filename))
+            else:
+                for entry in os.listdir(directory):
+                    full_path = os.path.join(directory, entry)
+                    if os.path.isfile(full_path):
+                        if pattern:
+                            import fnmatch
+                            if fnmatch.fnmatch(entry.lower(), pattern.lower()):
+                                files.append(full_path)
+                        else:
+                            files.append(full_path)
+
+            # Return file info
+            file_info = []
+            for f in files[:100]:  # Limit to 100 files
+                stat = os.stat(f)
+                file_info.append({
+                    "path": f,
+                    "name": os.path.basename(f),
+                    "size": stat.st_size,
+                    "extension": os.path.splitext(f)[1].lower()
+                })
+
+            return {
+                "directory": directory,
+                "files": file_info,
+                "total_count": len(files),
+                "returned_count": len(file_info)
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to list files: {str(e)}")
+
+    def create_directory(self, path, parents=True):
+        """Create a directory"""
+        try:
+            if os.path.exists(path):
+                return {
+                    "created": False,
+                    "path": path,
+                    "message": "Directory already exists"
+                }
+
+            if parents:
+                os.makedirs(path, exist_ok=True)
+            else:
+                os.mkdir(path)
+
+            return {
+                "created": True,
+                "path": path
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to create directory: {str(e)}")
+
+    # ========================================
+    # IMPORT/EXPORT OPERATIONS
+    # ========================================
+
+    def import_asset(self, filepath, asset_type=None):
+        """Import a 3D asset file into Blender"""
+        try:
+            if not os.path.exists(filepath):
+                raise ValueError(f"File not found: {filepath}")
+
+            ext = os.path.splitext(filepath)[1].lower()
+
+            # Count objects before import
+            objects_before = set(bpy.data.objects.keys())
+
+            # Import based on file extension
+            if ext == '.obj':
+                bpy.ops.wm.obj_import(filepath=filepath)
+            elif ext == '.fbx':
+                bpy.ops.import_scene.fbx(filepath=filepath)
+            elif ext == '.gltf' or ext == '.glb':
+                bpy.ops.import_scene.gltf(filepath=filepath)
+            elif ext == '.stl':
+                bpy.ops.wm.stl_import(filepath=filepath)
+            elif ext == '.ply':
+                bpy.ops.wm.ply_import(filepath=filepath)
+            elif ext == '.dae':
+                bpy.ops.wm.collada_import(filepath=filepath)
+            elif ext == '.abc':
+                bpy.ops.wm.alembic_import(filepath=filepath)
+            elif ext == '.usd' or ext == '.usda' or ext == '.usdc' or ext == '.usdz':
+                bpy.ops.wm.usd_import(filepath=filepath)
+            elif ext == '.blend':
+                # Append all objects from blend file
+                with bpy.data.libraries.load(filepath) as (data_from, data_to):
+                    data_to.objects = data_from.objects
+                # Link objects to current scene
+                for obj in data_to.objects:
+                    if obj is not None:
+                        bpy.context.scene.collection.objects.link(obj)
+            else:
+                raise ValueError(f"Unsupported file format: {ext}")
+
+            # Find newly imported objects
+            objects_after = set(bpy.data.objects.keys())
+            new_objects = list(objects_after - objects_before)
+
+            return {
+                "imported": True,
+                "filepath": filepath,
+                "format": ext,
+                "new_objects": new_objects,
+                "object_count": len(new_objects)
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to import asset: {str(e)}")
+
+    def export_asset(self, filepath, objects=None, format=None):
+        """Export objects to a file"""
+        try:
+            # Determine format from filepath or parameter
+            if format:
+                ext = f".{format.lower().strip('.')}"
+            else:
+                ext = os.path.splitext(filepath)[1].lower()
+
+            # Ensure filepath has correct extension
+            if not filepath.lower().endswith(ext):
+                filepath = filepath + ext
+
+            # Select objects to export
+            if objects:
+                bpy.ops.object.select_all(action='DESELECT')
+                for obj_name in objects:
+                    obj = bpy.data.objects.get(obj_name)
+                    if obj:
+                        obj.select_set(True)
+                        bpy.context.view_layer.objects.active = obj
+
+            # Export based on format
+            if ext == '.obj':
+                bpy.ops.wm.obj_export(filepath=filepath, export_selected_objects=bool(objects))
+            elif ext == '.fbx':
+                bpy.ops.export_scene.fbx(filepath=filepath, use_selection=bool(objects))
+            elif ext == '.gltf':
+                bpy.ops.export_scene.gltf(filepath=filepath, use_selection=bool(objects), export_format='GLTF_SEPARATE')
+            elif ext == '.glb':
+                bpy.ops.export_scene.gltf(filepath=filepath, use_selection=bool(objects), export_format='GLB')
+            elif ext == '.stl':
+                bpy.ops.wm.stl_export(filepath=filepath, export_selected_objects=bool(objects))
+            elif ext == '.ply':
+                bpy.ops.wm.ply_export(filepath=filepath, export_selected_objects=bool(objects))
+            elif ext == '.dae':
+                bpy.ops.wm.collada_export(filepath=filepath, selected=bool(objects))
+            elif ext == '.abc':
+                bpy.ops.wm.alembic_export(filepath=filepath, selected=bool(objects))
+            elif ext == '.usd' or ext == '.usda' or ext == '.usdc':
+                bpy.ops.wm.usd_export(filepath=filepath, selected_objects_only=bool(objects))
+            else:
+                raise ValueError(f"Unsupported export format: {ext}")
+
+            return {
+                "exported": True,
+                "filepath": filepath,
+                "format": ext,
+                "objects_exported": objects if objects else "all"
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to export asset: {str(e)}")
+
+    def get_supported_formats(self, operation="both"):
+        """Get list of supported import/export formats"""
+        try:
+            import_formats = {
+                ".obj": "Wavefront OBJ",
+                ".fbx": "Autodesk FBX",
+                ".gltf": "glTF 2.0",
+                ".glb": "glTF 2.0 Binary",
+                ".stl": "STL (Stereolithography)",
+                ".ply": "Stanford PLY",
+                ".dae": "Collada DAE",
+                ".abc": "Alembic",
+                ".usd": "Universal Scene Description",
+                ".usda": "USD ASCII",
+                ".usdc": "USD Crate",
+                ".blend": "Blender File"
+            }
+
+            export_formats = {
+                ".obj": "Wavefront OBJ",
+                ".fbx": "Autodesk FBX",
+                ".gltf": "glTF 2.0 Separate",
+                ".glb": "glTF 2.0 Binary",
+                ".stl": "STL (Stereolithography)",
+                ".ply": "Stanford PLY",
+                ".dae": "Collada DAE",
+                ".abc": "Alembic",
+                ".usd": "Universal Scene Description",
+                ".usda": "USD ASCII",
+                ".usdc": "USD Crate"
+            }
+
+            if operation == "import":
+                return {"import_formats": import_formats}
+            elif operation == "export":
+                return {"export_formats": export_formats}
+            else:
+                return {
+                    "import_formats": import_formats,
+                    "export_formats": export_formats
+                }
+
+        except Exception as e:
+            raise Exception(f"Failed to get supported formats: {str(e)}")
+
+    def optimize_asset(self, object_name, decimate_ratio=None, remove_doubles=True,
+                       merge_distance=0.0001, apply_modifiers=False):
+        """Optimize a mesh asset"""
+        try:
+            obj = bpy.data.objects.get(object_name)
+            if not obj:
+                raise ValueError(f"Object not found: {object_name}")
+
+            if obj.type != 'MESH':
+                raise ValueError(f"Object '{object_name}' is not a mesh")
+
+            original_verts = len(obj.data.vertices)
+            original_faces = len(obj.data.polygons)
+
+            # Make object active
+            bpy.context.view_layer.objects.active = obj
+            obj.select_set(True)
+
+            # Enter edit mode for mesh operations
+            bpy.ops.object.mode_set(mode='EDIT')
+
+            # Remove doubles (merge by distance)
+            if remove_doubles:
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.mesh.remove_doubles(threshold=merge_distance)
+
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+            # Apply decimate modifier
+            if decimate_ratio and 0 < decimate_ratio < 1:
+                decimate = obj.modifiers.new(name="Decimate", type='DECIMATE')
+                decimate.ratio = decimate_ratio
+
+                if apply_modifiers:
+                    bpy.ops.object.modifier_apply(modifier="Decimate")
+                else:
+                    # Apply and remove
+                    bpy.ops.object.modifier_apply(modifier="Decimate")
+
+            final_verts = len(obj.data.vertices)
+            final_faces = len(obj.data.polygons)
+
+            return {
+                "optimized": True,
+                "object_name": obj.name,
+                "original_vertices": original_verts,
+                "final_vertices": final_verts,
+                "original_faces": original_faces,
+                "final_faces": final_faces,
+                "vertices_reduced": original_verts - final_verts,
+                "faces_reduced": original_faces - final_faces
+            }
+
+        except Exception as e:
+            # Make sure we're back in object mode
+            try:
+                bpy.ops.object.mode_set(mode='OBJECT')
+            except:
+                pass
+            raise Exception(f"Failed to optimize asset: {str(e)}")
+
+    def organize_assets_by_type(self):
+        """Organize all objects in scene into collections by type"""
+        try:
+            # Define type categories
+            type_categories = {
+                'MESH': 'Meshes',
+                'CURVE': 'Curves',
+                'SURFACE': 'Surfaces',
+                'META': 'Metaballs',
+                'FONT': 'Text',
+                'ARMATURE': 'Armatures',
+                'LATTICE': 'Lattices',
+                'EMPTY': 'Empties',
+                'GPENCIL': 'Grease Pencil',
+                'CAMERA': 'Cameras',
+                'LIGHT': 'Lights',
+                'SPEAKER': 'Speakers',
+                'LIGHT_PROBE': 'Light Probes'
+            }
+
+            # Create collections for each type
+            created_collections = []
+            moved_objects = {}
+
+            for obj in bpy.context.scene.objects:
+                obj_type = obj.type
+                collection_name = type_categories.get(obj_type, 'Other')
+
+                # Create collection if it doesn't exist
+                if collection_name not in bpy.data.collections:
+                    new_coll = bpy.data.collections.new(collection_name)
+                    bpy.context.scene.collection.children.link(new_coll)
+                    created_collections.append(collection_name)
+
+                coll = bpy.data.collections[collection_name]
+
+                # Add object to collection if not already there
+                if obj.name not in coll.objects:
+                    coll.objects.link(obj)
+                    if collection_name not in moved_objects:
+                        moved_objects[collection_name] = []
+                    moved_objects[collection_name].append(obj.name)
+
+            return {
+                "organized": True,
+                "collections_created": created_collections,
+                "objects_organized": moved_objects,
+                "total_objects": len(bpy.context.scene.objects)
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to organize assets: {str(e)}")
 
     def get_polyhaven_categories(self, asset_type):
         """Get categories for a specific asset type from Polyhaven"""

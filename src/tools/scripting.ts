@@ -45,7 +45,7 @@ Performance: Long-running code may hit timeout limits`,
     async (params): Promise<ToolResult> => {
       try {
         const client = getBlenderClient();
-        const response = await client.sendCommand('execute_blender_code', {
+        const response = await client.sendCommand('execute_code', {
           code: params.code,
           timeout: params.timeout
         });
