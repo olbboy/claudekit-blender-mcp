@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- NO BACKGROUND - Icon Only -->
+  <defs>
+    <linearGradient id="i2orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F97316"/>
+      <stop offset="100%" style="stop-color:#EA580C"/>
+    </linearGradient>
+    <linearGradient id="i2blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#1D4ED8"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(50, 50)">
+    <!-- Hexagon frame -->
+    <polygon points="0,-40 35,-20 35,20 0,40 -35,20 -35,-20"
+             fill="none" stroke="url(#i2orange)" stroke-width="4"/>
+
+    <!-- Inner triangle -->
+    <polygon points="0,-25 22,12 -22,12" fill="url(#i2blue)" opacity="0.85"/>
+
+    <!-- Center -->
+    <circle cx="0" cy="0" r="8" fill="#FFF" stroke="url(#i2orange)" stroke-width="2"/>
+    <circle cx="0" cy="0" r="3" fill="url(#i2orange)"/>
+
+    <!-- Vertex nodes -->
+    <circle cx="0" cy="-40" r="5" fill="url(#i2orange)"/>
+    <circle cx="0" cy="40" r="5" fill="url(#i2orange)"/>
+    <circle cx="35" cy="-20" r="4" fill="url(#i2blue)"/>
+    <circle cx="35" cy="20" r="4" fill="url(#i2blue)"/>
+    <circle cx="-35" cy="-20" r="4" fill="url(#i2blue)"/>
+    <circle cx="-35" cy="20" r="4" fill="url(#i2blue)"/>
+  </g>
+</svg>

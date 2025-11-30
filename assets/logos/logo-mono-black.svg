@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- ClaudeKit Blender MCP - Monochrome Black -->
+  <defs>
+    <filter id="monoShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Abstract flowing B shape -->
+  <g transform="translate(100, 80)" filter="url(#monoShadow)">
+    <path d="M -45,15 Q -45,-45 0,-55 Q 45,-45 45,15 Q 45,50 0,55 Q -35,52 -45,15"
+          fill="#1F2937"/>
+    <path d="M -25,8 Q -25,-28 0,-35 Q 25,-28 25,8 Q 25,30 0,35 Q -18,32 -25,8"
+          fill="#4B5563" opacity="0.9"/>
+    <ellipse cx="0" cy="-8" rx="12" ry="10" fill="#FFFFFF" opacity="0.3"/>
+    <circle cx="-35" cy="-30" r="6" fill="#FFF"/>
+    <circle cx="35" cy="-30" r="6" fill="#FFF"/>
+    <circle cx="0" cy="42" r="6" fill="#FFF"/>
+    <path d="M -30,-26 Q 0,-55 30,-26" fill="none" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+    <path d="M -30,-34 Q -45,8 -5,38" fill="none" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+    <path d="M 30,-34 Q 45,8 5,38" fill="none" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+  </g>
+
+  <text x="100" y="165" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#1F2937" text-anchor="middle">ClaudeKit</text>
+  <text x="100" y="185" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="500" fill="#6B7280" text-anchor="middle" letter-spacing="2">BLENDER MCP</text>
+</svg>

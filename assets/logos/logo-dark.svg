@@ -1,45 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- NO BACKGROUND - Fully Transparent -->
+  <!-- ClaudeKit Blender MCP - Dark Theme Version (White Text) -->
   <defs>
-    <linearGradient id="t3grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="darkGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#FF6B35"/>
       <stop offset="50%" style="stop-color:#F7931E"/>
       <stop offset="100%" style="stop-color:#FFB700"/>
     </linearGradient>
-    <linearGradient id="t3grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="darkGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#667EEA"/>
       <stop offset="100%" style="stop-color:#764BA2"/>
     </linearGradient>
-    <filter id="t3shadow">
-      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.2"/>
+    <filter id="darkShadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/>
     </filter>
   </defs>
 
   <!-- Abstract flowing B shape -->
-  <g transform="translate(100, 80)" filter="url(#t3shadow)">
-    <!-- Main flowing shape -->
+  <g transform="translate(100, 80)" filter="url(#darkShadow)">
     <path d="M -45,15 Q -45,-45 0,-55 Q 45,-45 45,15 Q 45,50 0,55 Q -35,52 -45,15"
-          fill="url(#t3grad1)"/>
-
-    <!-- Inner accent -->
+          fill="url(#darkGrad1)"/>
     <path d="M -25,8 Q -25,-28 0,-35 Q 25,-28 25,8 Q 25,30 0,35 Q -18,32 -25,8"
-          fill="url(#t3grad2)" opacity="0.8"/>
-
-    <!-- Highlight -->
+          fill="url(#darkGrad2)" opacity="0.8"/>
     <ellipse cx="0" cy="-8" rx="12" ry="10" fill="#FFFFFF" opacity="0.4"/>
-
-    <!-- Protocol nodes -->
     <circle cx="-35" cy="-30" r="6" fill="#FFF"/>
     <circle cx="35" cy="-30" r="6" fill="#FFF"/>
     <circle cx="0" cy="42" r="6" fill="#FFF"/>
-
-    <!-- Node connections -->
     <path d="M -30,-26 Q 0,-55 30,-26" fill="none" stroke="#FFF" stroke-width="2" opacity="0.6"/>
     <path d="M -30,-34 Q -45,8 -5,38" fill="none" stroke="#FFF" stroke-width="2" opacity="0.6"/>
     <path d="M 30,-34 Q 45,8 5,38" fill="none" stroke="#FFF" stroke-width="2" opacity="0.6"/>
   </g>
 
-  <!-- Text -->
-  <text x="100" y="165" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#1F2937" text-anchor="middle">ClaudeKit</text>
-  <text x="100" y="185" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="500" fill="url(#t3grad1)" text-anchor="middle" letter-spacing="2">BLENDER MCP</text>
+  <!-- White text for dark backgrounds -->
+  <text x="100" y="165" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#FFFFFF" text-anchor="middle">ClaudeKit</text>
+  <text x="100" y="185" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="500" fill="url(#darkGrad1)" text-anchor="middle" letter-spacing="2">BLENDER MCP</text>
 </svg>

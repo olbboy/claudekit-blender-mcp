@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- NO BACKGROUND - Fully Transparent -->
+  <defs>
+    <linearGradient id="t4orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF7700"/>
+      <stop offset="100%" style="stop-color:#E85A00"/>
+    </linearGradient>
+    <linearGradient id="t4cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06B6D4"/>
+      <stop offset="100%" style="stop-color:#0891B2"/>
+    </linearGradient>
+    <filter id="t4shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <g transform="translate(100, 85)">
+    <!-- Outer ring (Blender reference) -->
+    <circle cx="0" cy="0" r="55" fill="none" stroke="url(#t4orange)" stroke-width="6" filter="url(#t4shadow)"/>
+
+    <!-- Stylized B letterform -->
+    <path d="M -18,-32 L -18,32 Q 18,32 18,16 Q 18,0 -3,0 Q 18,0 18,-16 Q 18,-32 -18,-32"
+          fill="none" stroke="url(#t4orange)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- MCP connection dots on ring -->
+    <circle cx="0" cy="-55" r="8" fill="url(#t4cyan)"/>
+    <circle cx="55" cy="0" r="8" fill="url(#t4cyan)"/>
+    <circle cx="0" cy="55" r="8" fill="url(#t4cyan)"/>
+    <circle cx="-55" cy="0" r="8" fill="url(#t4cyan)"/>
+
+    <!-- Inner connection dots -->
+    <circle cx="0" cy="-47" r="3" fill="#FFF"/>
+    <circle cx="47" cy="0" r="3" fill="#FFF"/>
+    <circle cx="0" cy="47" r="3" fill="#FFF"/>
+    <circle cx="-47" cy="0" r="3" fill="#FFF"/>
+  </g>
+
+  <!-- Text -->
+  <text x="100" y="165" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="600" fill="#1F2937" text-anchor="middle">ClaudeKit</text>
+  <text x="100" y="185" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="500" fill="#6B7280" text-anchor="middle" letter-spacing="2">BLENDER MCP</text>
+</svg>

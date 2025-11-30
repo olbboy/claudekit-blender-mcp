@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- ClaudeKit Blender MCP - Favicon (Optimized for 16x16, 32x32) -->
+  <defs>
+    <linearGradient id="favGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B35"/>
+      <stop offset="100%" style="stop-color:#FFB700"/>
+    </linearGradient>
+    <linearGradient id="favGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667EEA"/>
+      <stop offset="100%" style="stop-color:#764BA2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Simplified abstract shape for small sizes -->
+  <g transform="translate(16, 16)">
+    <path d="M -12,4 Q -12,-12 0,-14 Q 12,-12 12,4 Q 12,13 0,14 Q -9,13 -12,4"
+          fill="url(#favGrad1)"/>
+    <path d="M -7,2 Q -7,-7 0,-9 Q 7,-7 7,2 Q 7,8 0,9 Q -5,8 -7,2"
+          fill="url(#favGrad2)" opacity="0.85"/>
+    <!-- Simplified nodes -->
+    <circle cx="-9" cy="-8" r="2" fill="#FFF"/>
+    <circle cx="9" cy="-8" r="2" fill="#FFF"/>
+    <circle cx="0" cy="11" r="2" fill="#FFF"/>
+  </g>
+</svg>

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- NO BACKGROUND - Fully Transparent -->
+  <defs>
+    <linearGradient id="t1orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF9500"/>
+      <stop offset="100%" style="stop-color:#FF7700"/>
+    </linearGradient>
+    <linearGradient id="t1left" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E86500"/>
+      <stop offset="100%" style="stop-color:#CC5500"/>
+    </linearGradient>
+    <linearGradient id="t1right" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8800"/>
+      <stop offset="100%" style="stop-color:#DD6600"/>
+    </linearGradient>
+    <linearGradient id="t1cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22D3EE"/>
+      <stop offset="100%" style="stop-color:#06B6D4"/>
+    </linearGradient>
+    <filter id="t1shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Main 3D Cube -->
+  <g transform="translate(100, 85)" filter="url(#t1shadow)">
+    <!-- Top face -->
+    <polygon points="0,-50 43,-25 0,0 -43,-25" fill="url(#t1orange)"/>
+    <!-- Left face -->
+    <polygon points="-43,-25 0,0 0,50 -43,25" fill="url(#t1left)"/>
+    <!-- Right face -->
+    <polygon points="43,-25 43,25 0,50 0,0" fill="url(#t1right)"/>
+    <!-- Edge highlights -->
+    <line x1="0" y1="-50" x2="43" y2="-25" stroke="#FFB84D" stroke-width="2"/>
+    <line x1="0" y1="-50" x2="-43" y2="-25" stroke="#FFB84D" stroke-width="2"/>
+  </g>
+
+  <!-- MCP Connection nodes -->
+  <circle cx="100" cy="20" r="10" fill="url(#t1cyan)"/>
+  <circle cx="45" cy="120" r="10" fill="url(#t1cyan)"/>
+  <circle cx="155" cy="120" r="10" fill="url(#t1cyan)"/>
+
+  <!-- Connection lines -->
+  <path d="M 100,30 L 100,35" stroke="url(#t1cyan)" stroke-width="2" stroke-dasharray="3,2"/>
+  <path d="M 55,115 L 65,105" stroke="url(#t1cyan)" stroke-width="2" stroke-dasharray="3,2"/>
+  <path d="M 145,115 L 135,105" stroke="url(#t1cyan)" stroke-width="2" stroke-dasharray="3,2"/>
+
+  <!-- Text -->
+  <text x="100" y="165" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#1F2937" text-anchor="middle">ClaudeKit</text>
+  <text x="100" y="185" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="500" fill="#6B7280" text-anchor="middle" letter-spacing="2">BLENDER MCP</text>
+</svg>

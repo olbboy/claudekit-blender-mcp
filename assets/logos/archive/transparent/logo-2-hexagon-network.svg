@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- NO BACKGROUND - Fully Transparent -->
+  <defs>
+    <linearGradient id="t2orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F97316"/>
+      <stop offset="100%" style="stop-color:#EA580C"/>
+    </linearGradient>
+    <linearGradient id="t2blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="t2warm" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#D97706"/>
+      <stop offset="100%" style="stop-color:#B45309"/>
+    </linearGradient>
+    <filter id="t2glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer hexagon -->
+  <g transform="translate(100, 85)" filter="url(#t2glow)">
+    <polygon points="0,-55 48,-27.5 48,27.5 0,55 -48,27.5 -48,-27.5"
+             fill="none" stroke="url(#t2orange)" stroke-width="4"/>
+
+    <!-- Inner filled triangle -->
+    <polygon points="0,-35 30,18 -30,18" fill="url(#t2blue)" opacity="0.85"/>
+
+    <!-- Center hub -->
+    <circle cx="0" cy="0" r="12" fill="#FFF" stroke="url(#t2orange)" stroke-width="3"/>
+    <circle cx="0" cy="0" r="5" fill="url(#t2orange)"/>
+
+    <!-- Vertex nodes -->
+    <circle cx="0" cy="-55" r="8" fill="url(#t2orange)"/>
+    <circle cx="48" cy="-27.5" r="6" fill="url(#t2warm)"/>
+    <circle cx="48" cy="27.5" r="6" fill="url(#t2warm)"/>
+    <circle cx="0" cy="55" r="8" fill="url(#t2orange)"/>
+    <circle cx="-48" cy="27.5" r="6" fill="url(#t2warm)"/>
+    <circle cx="-48" cy="-27.5" r="6" fill="url(#t2warm)"/>
+
+    <!-- Connection lines from center -->
+    <line x1="0" y1="-12" x2="0" y2="-47" stroke="url(#t2blue)" stroke-width="2"/>
+    <line x1="0" y1="12" x2="0" y2="47" stroke="url(#t2blue)" stroke-width="2"/>
+  </g>
+
+  <!-- Text -->
+  <text x="100" y="165" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#1F2937" text-anchor="middle">ClaudeKit</text>
+  <text x="100" y="185" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="500" fill="#6B7280" text-anchor="middle" letter-spacing="2">BLENDER MCP</text>
+</svg>

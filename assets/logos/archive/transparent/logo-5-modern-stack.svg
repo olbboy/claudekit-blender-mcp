@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- NO BACKGROUND - Fully Transparent -->
+  <defs>
+    <linearGradient id="t5layer1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FF8C00"/>
+      <stop offset="100%" style="stop-color:#FF6600"/>
+    </linearGradient>
+    <linearGradient id="t5layer2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#F59E0B"/>
+      <stop offset="100%" style="stop-color:#D97706"/>
+    </linearGradient>
+    <linearGradient id="t5layer3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FBBF24"/>
+      <stop offset="100%" style="stop-color:#F59E0B"/>
+    </linearGradient>
+    <linearGradient id="t5accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#14B8A6"/>
+      <stop offset="100%" style="stop-color:#0D9488"/>
+    </linearGradient>
+    <filter id="t5shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Stacked layers (3D representation) -->
+  <g transform="translate(100, 75)" filter="url(#t5shadow)">
+    <!-- Bottom layer -->
+    <path d="M -50,25 L 0,50 L 50,25 L 0,0 Z" fill="url(#t5layer1)"/>
+    <!-- Middle layer -->
+    <path d="M -50,10 L 0,35 L 50,10 L 0,-15 Z" fill="url(#t5layer2)"/>
+    <!-- Top layer -->
+    <path d="M -50,-5 L 0,20 L 50,-5 L 0,-30 Z" fill="url(#t5layer3)"/>
+
+    <!-- Connection nodes -->
+    <circle cx="0" cy="-30" r="7" fill="url(#t5accent)"/>
+    <circle cx="-50" cy="-5" r="5" fill="url(#t5accent)"/>
+    <circle cx="50" cy="-5" r="5" fill="url(#t5accent)"/>
+    <circle cx="0" cy="50" r="7" fill="url(#t5accent)"/>
+
+    <!-- Vertical connection line -->
+    <line x1="0" y1="-23" x2="0" y2="43" stroke="url(#t5accent)" stroke-width="2" stroke-dasharray="4,3"/>
+  </g>
+
+  <!-- Text -->
+  <text x="100" y="160" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#1F2937" text-anchor="middle">ClaudeKit</text>
+  <text x="100" y="180" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="500" fill="#6B7280" text-anchor="middle" letter-spacing="2">BLENDER MCP</text>
+</svg>

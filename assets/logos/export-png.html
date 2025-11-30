@@ -3,83 +3,236 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ClaudeKit Logo PNG Export</title>
+  <title>ClaudeKit Logo PNG Export Tool</title>
   <style>
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #1a1a2e;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0F0F23 0%, #1A1A3E 100%);
       color: #fff;
-      padding: 2rem;
       min-height: 100vh;
+      padding: 2rem;
     }
-    h1 { color: #FF6B35; margin-bottom: 0.5rem; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 {
+      background: linear-gradient(90deg, #FF6B35, #FFB700);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+      font-size: 2rem;
+    }
     .subtitle { color: #888; margin-bottom: 2rem; }
-    .sizes { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; }
+
+    .logo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .logo-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .logo-card:hover {
+      transform: translateY(-4px);
+      border-color: #FF6B35;
+    }
+    .logo-card.selected {
+      border-color: #FF6B35;
+      background: rgba(255,107,53,0.1);
+    }
+    .logo-card h3 { color: #FFB700; margin-bottom: 0.5rem; font-size: 1rem; }
+    .logo-card .desc { color: #888; font-size: 0.85rem; margin-bottom: 1rem; }
+    .logo-preview {
+      background: repeating-conic-gradient(#2a2a4e 0% 25%, #1a1a3e 0% 50%) 50% / 20px 20px;
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 120px;
+      margin-bottom: 1rem;
+    }
+    .logo-preview.dark-bg { background: #1a1a2e; }
+    .logo-preview.light-bg { background: #f8fafc; }
+    .logo-preview img { max-width: 100%; max-height: 100px; }
+
+    .size-section {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .size-section h2 { color: #FFB700; margin-bottom: 1rem; }
+    .sizes { display: flex; flex-wrap: wrap; gap: 0.75rem; }
     .size-btn {
-      background: #FF6B35;
+      background: linear-gradient(135deg, #FF6B35, #F7931E);
       color: #fff;
       border: none;
-      padding: 0.75rem 1.5rem;
+      padding: 0.6rem 1.2rem;
       border-radius: 8px;
       cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .size-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255,107,53,0.4);
+    }
+    .size-btn.secondary {
+      background: linear-gradient(135deg, #667EEA, #764BA2);
+    }
+
+    .export-all {
+      background: linear-gradient(135deg, #10B981, #059669);
       font-size: 1rem;
-      transition: background 0.2s;
+      padding: 0.8rem 2rem;
     }
-    .size-btn:hover { background: #E85A00; }
-    .preview {
-      background: #0f0f23;
-      padding: 2rem;
-      border-radius: 12px;
-      text-align: center;
-    }
-    .preview img { max-width: 100%; height: auto; }
-    canvas { display: none; }
+
     .instructions {
-      background: #2a2a4e;
-      padding: 1rem;
-      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border-left: 4px solid #FF6B35;
+      padding: 1rem 1.5rem;
+      border-radius: 0 8px 8px 0;
       margin-top: 2rem;
     }
-    .instructions h3 { margin-top: 0; color: #60A5FA; }
-    .instructions ol { margin: 0; padding-left: 1.5rem; }
-    .instructions li { margin: 0.5rem 0; color: #ccc; }
+    .instructions h3 { color: #FFB700; margin-bottom: 0.75rem; }
+    .instructions ol { padding-left: 1.5rem; color: #ccc; }
+    .instructions li { margin: 0.5rem 0; }
+
+    canvas { display: none; }
+
+    .status {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: #10B981;
+      color: #fff;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      display: none;
+      animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } }
   </style>
 </head>
 <body>
-  <h1>ClaudeKit Blender MCP - Logo Export</h1>
-  <p class="subtitle">Click a size to download PNG</p>
+  <div class="container">
+    <h1>ClaudeKit Blender MCP</h1>
+    <p class="subtitle">Logo PNG Export Tool - Click to select a logo, then choose export size</p>
 
-  <div class="sizes">
-    <button class="size-btn" onclick="exportPNG(16)">16px</button>
-    <button class="size-btn" onclick="exportPNG(32)">32px</button>
-    <button class="size-btn" onclick="exportPNG(64)">64px</button>
-    <button class="size-btn" onclick="exportPNG(128)">128px</button>
-    <button class="size-btn" onclick="exportPNG(256)">256px</button>
-    <button class="size-btn" onclick="exportPNG(512)">512px</button>
-    <button class="size-btn" onclick="exportPNG(1024)">1024px</button>
-    <button class="size-btn" onclick="exportAll()">Download All</button>
+    <div class="logo-grid">
+      <div class="logo-card selected" data-logo="logo.svg">
+        <h3>Main Logo (Color)</h3>
+        <p class="desc">Primary logo with gradient colors</p>
+        <div class="logo-preview">
+          <img src="logo.svg" alt="Main Logo">
+        </div>
+      </div>
+
+      <div class="logo-card" data-logo="logo-dark.svg">
+        <h3>Dark Theme</h3>
+        <p class="desc">White text for dark backgrounds</p>
+        <div class="logo-preview dark-bg">
+          <img src="logo-dark.svg" alt="Dark Theme Logo">
+        </div>
+      </div>
+
+      <div class="logo-card" data-logo="logo-light.svg">
+        <h3>Light Theme</h3>
+        <p class="desc">Dark text for light backgrounds</p>
+        <div class="logo-preview light-bg">
+          <img src="logo-light.svg" alt="Light Theme Logo">
+        </div>
+      </div>
+
+      <div class="logo-card" data-logo="icon.svg">
+        <h3>Icon Only</h3>
+        <p class="desc">Symbol without text</p>
+        <div class="logo-preview">
+          <img src="icon.svg" alt="Icon">
+        </div>
+      </div>
+
+      <div class="logo-card" data-logo="favicon.svg">
+        <h3>Favicon</h3>
+        <p class="desc">Optimized for small sizes</p>
+        <div class="logo-preview">
+          <img src="favicon.svg" alt="Favicon" style="max-height: 64px;">
+        </div>
+      </div>
+
+      <div class="logo-card" data-logo="logo-mono-black.svg">
+        <h3>Mono Black</h3>
+        <p class="desc">Single color for print</p>
+        <div class="logo-preview light-bg">
+          <img src="logo-mono-black.svg" alt="Mono Black">
+        </div>
+      </div>
+
+      <div class="logo-card" data-logo="logo-mono-white.svg">
+        <h3>Mono White</h3>
+        <p class="desc">White version for dark print</p>
+        <div class="logo-preview dark-bg">
+          <img src="logo-mono-white.svg" alt="Mono White">
+        </div>
+      </div>
+    </div>
+
+    <div class="size-section">
+      <h2>Export Selected Logo</h2>
+      <div class="sizes">
+        <button class="size-btn" onclick="exportPNG(16)">16px</button>
+        <button class="size-btn" onclick="exportPNG(32)">32px</button>
+        <button class="size-btn" onclick="exportPNG(48)">48px</button>
+        <button class="size-btn" onclick="exportPNG(64)">64px</button>
+        <button class="size-btn" onclick="exportPNG(128)">128px</button>
+        <button class="size-btn" onclick="exportPNG(256)">256px</button>
+        <button class="size-btn" onclick="exportPNG(512)">512px</button>
+        <button class="size-btn" onclick="exportPNG(1024)">1024px</button>
+        <button class="size-btn secondary" onclick="exportPNG(2048)">2048px (Hi-Res)</button>
+        <button class="size-btn export-all" onclick="exportAll()">Download All Sizes</button>
+      </div>
+    </div>
+
+    <div class="instructions">
+      <h3>How to Use</h3>
+      <ol>
+        <li>Click on a logo card to select it</li>
+        <li>Click a size button to download that PNG</li>
+        <li>Click "Download All Sizes" for a complete set</li>
+        <li>PNGs will be saved to your Downloads folder</li>
+        <li>All exports have transparent backgrounds</li>
+      </ol>
+    </div>
   </div>
 
-  <div class="preview">
-    <h3>Preview</h3>
-    <img id="preview" src="logo.svg" alt="Logo Preview" style="max-width: 400px;">
-  </div>
-
+  <div class="status" id="status">Downloaded!</div>
   <canvas id="canvas"></canvas>
 
-  <div class="instructions">
-    <h3>Instructions</h3>
-    <ol>
-      <li>Open this file in a browser (double-click or drag to browser)</li>
-      <li>Click any size button to download that PNG</li>
-      <li>Click "Download All" to get all sizes at once</li>
-      <li>PNGs will be saved to your Downloads folder</li>
-    </ol>
-  </div>
-
   <script>
-    const svgUrl = 'logo.svg';
+    let selectedLogo = 'logo.svg';
+
+    // Logo card selection
+    document.querySelectorAll('.logo-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.logo-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedLogo = card.dataset.logo;
+      });
+    });
+
+    function showStatus(msg) {
+      const status = document.getElementById('status');
+      status.textContent = msg;
+      status.style.display = 'block';
+      setTimeout(() => { status.style.display = 'none'; }, 2000);
+    }
 
     async function exportPNG(size) {
       const canvas = document.getElementById('canvas');
@@ -92,20 +245,24 @@
         ctx.clearRect(0, 0, size, size);
         ctx.drawImage(img, 0, 0, size, size);
 
+        const baseName = selectedLogo.replace('.svg', '');
         const link = document.createElement('a');
-        link.download = `claudekit-blender-mcp-logo-${size}x${size}.png`;
+        link.download = `claudekit-blender-mcp-${baseName}-${size}x${size}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
+        showStatus(`Exported ${size}x${size}!`);
       };
-      img.src = svgUrl;
+      img.src = selectedLogo;
     }
 
     async function exportAll() {
-      const sizes = [16, 32, 64, 128, 256, 512, 1024];
+      const sizes = [16, 32, 48, 64, 128, 256, 512, 1024];
+      showStatus('Exporting all sizes...');
       for (let i = 0; i < sizes.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        exportPNG(sizes[i]);
+        await new Promise(resolve => setTimeout(resolve, 400));
+        await exportPNG(sizes[i]);
       }
+      showStatus('All sizes exported!');
     }
   </script>
 </body>

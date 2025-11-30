@@ -1,12 +1,27 @@
 <p align="center">
-  <img src="assets/logos/logo.svg" alt="ClaudeKit Blender MCP Logo" width="280">
+  <img src="assets/logos/logo.svg" alt="ClaudeKit Blender MCP Logo" width="200">
 </p>
 
 <h1 align="center">ClaudeKit Blender MCP</h1>
 
 <p align="center">
-  Model Context Protocol server for Blender 3D integration with ClaudeKit enhancements.
+  <strong>Model Context Protocol server for Blender 3D integration with ClaudeKit enhancements.</strong>
 </p>
+
+<p align="center">
+  <a href="#installation"><img src="https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen?style=flat-square" alt="Node.js"></a>
+  <a href="#requirements"><img src="https://img.shields.io/badge/blender-%3E%3D3.0-orange?style=flat-square" alt="Blender"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
+</p>
+
+<p align="center">
+  <a href="#installation">Installation</a> •
+  <a href="#configuration">Configuration</a> •
+  <a href="#available-tools">Tools</a> •
+  <a href="#troubleshooting">Troubleshooting</a>
+</p>
+
+---
 
 ## Features
 
