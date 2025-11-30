@@ -1,6 +1,12 @@
-# claudekit-blender-mcp
+<p align="center">
+  <img src="assets/logos/logo.svg" alt="ClaudeKit Blender MCP Logo" width="280">
+</p>
 
-Model Context Protocol server for Blender 3D integration with ClaudeKit enhancements.
+<h1 align="center">ClaudeKit Blender MCP</h1>
+
+<p align="center">
+  Model Context Protocol server for Blender 3D integration with ClaudeKit enhancements.
+</p>
 
 ## Features
 

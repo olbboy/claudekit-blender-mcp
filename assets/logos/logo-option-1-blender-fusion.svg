@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <!-- Gradient for Blender orange -->
+    <linearGradient id="blenderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF7700"/>
+      <stop offset="100%" style="stop-color:#E85A00"/>
+    </linearGradient>
+    <!-- Gradient for Claude purple -->
+    <linearGradient id="claudeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#CC785C"/>
+      <stop offset="100%" style="stop-color:#8B5A3E"/>
+    </linearGradient>
+    <!-- Gradient for MCP blue -->
+    <linearGradient id="mcpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#1D4ED8"/>
+    </linearGradient>
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="200" cy="180" r="140" fill="#1a1a2e" filter="url(#shadow)"/>
+
+  <!-- Blender-inspired shape (stylized B) -->
+  <g transform="translate(200, 180)">
+    <!-- Outer ring representing Blender's iconic shape -->
+    <ellipse cx="0" cy="0" rx="100" ry="80" fill="none" stroke="url(#blenderGrad)" stroke-width="12"/>
+
+    <!-- Inner connection nodes (MCP protocol) -->
+    <circle cx="-60" cy="0" r="20" fill="url(#mcpGrad)"/>
+    <circle cx="60" cy="0" r="20" fill="url(#mcpGrad)"/>
+    <circle cx="0" cy="-50" r="20" fill="url(#claudeGrad)"/>
+
+    <!-- Connection lines -->
+    <line x1="-40" y1="0" x2="40" y2="0" stroke="url(#mcpGrad)" stroke-width="4" stroke-linecap="round"/>
+    <line x1="-45" y1="-15" x2="-10" y2="-40" stroke="url(#claudeGrad)" stroke-width="4" stroke-linecap="round"/>
+    <line x1="45" y1="-15" x2="10" y2="-40" stroke="url(#claudeGrad)" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Central 3D cube icon -->
+    <g transform="translate(0, 15)">
+      <polygon points="0,-25 22,-12 22,12 0,25 -22,12 -22,-12" fill="url(#blenderGrad)" opacity="0.9"/>
+      <polygon points="0,-25 22,-12 0,0 -22,-12" fill="#FFa040"/>
+      <polygon points="0,0 22,-12 22,12 0,25" fill="#E85A00"/>
+      <polygon points="0,0 -22,-12 -22,12 0,25" fill="#CC6600"/>
+    </g>
+  </g>
+
+  <!-- Text: ClaudeKit -->
+  <text x="200" y="345" font-family="system-ui, -apple-system, sans-serif" font-size="36" font-weight="700" fill="#FFFFFF" text-anchor="middle">
+    ClaudeKit
+  </text>
+
+  <!-- Text: Blender MCP -->
+  <text x="200" y="380" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="400" fill="#888888" text-anchor="middle">
+    Blender MCP
+  </text>
+</svg>

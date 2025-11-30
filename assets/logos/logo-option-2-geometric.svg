@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <!-- Blender Orange Gradient -->
+    <linearGradient id="orangeGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8C00"/>
+      <stop offset="100%" style="stop-color:#FF5500"/>
+    </linearGradient>
+    <!-- Tech Blue Gradient -->
+    <linearGradient id="blueGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60A5FA"/>
+      <stop offset="100%" style="stop-color:#3B82F6"/>
+    </linearGradient>
+    <!-- Claude Warm Gradient -->
+    <linearGradient id="warmGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#D97706"/>
+      <stop offset="100%" style="stop-color:#B45309"/>
+    </linearGradient>
+    <!-- Glow effect -->
+    <filter id="glow2">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Dark background -->
+  <rect width="400" height="400" fill="#0F172A"/>
+
+  <!-- Geometric hexagon pattern background -->
+  <g opacity="0.1">
+    <polygon points="200,50 280,96 280,188 200,234 120,188 120,96" fill="none" stroke="#60A5FA" stroke-width="1"/>
+    <polygon points="200,80 250,110 250,170 200,200 150,170 150,110" fill="none" stroke="#60A5FA" stroke-width="1"/>
+  </g>
+
+  <!-- Main logo mark - Stylized "B" for Blender with connection nodes -->
+  <g transform="translate(200, 160)">
+    <!-- Outer hexagon frame -->
+    <polygon points="0,-90 78,-45 78,45 0,90 -78,45 -78,-45" fill="none" stroke="url(#orangeGrad2)" stroke-width="4" filter="url(#glow2)"/>
+
+    <!-- Inner triangle pointing up (representing 3D axis) -->
+    <polygon points="0,-55 48,28 -48,28" fill="url(#blueGrad2)" opacity="0.8"/>
+
+    <!-- Connection protocol dots -->
+    <circle cx="0" cy="-55" r="12" fill="url(#orangeGrad2)"/>
+    <circle cx="48" cy="28" r="12" fill="url(#warmGrad2)"/>
+    <circle cx="-48" cy="28" r="12" fill="url(#warmGrad2)"/>
+
+    <!-- Center node -->
+    <circle cx="0" cy="0" r="18" fill="#0F172A" stroke="url(#blueGrad2)" stroke-width="3"/>
+    <circle cx="0" cy="0" r="8" fill="url(#blueGrad2)"/>
+
+    <!-- Connecting lines from center -->
+    <line x1="0" y1="-18" x2="0" y2="-43" stroke="url(#orangeGrad2)" stroke-width="3"/>
+    <line x1="16" y1="9" x2="38" y2="22" stroke="url(#warmGrad2)" stroke-width="3"/>
+    <line x1="-16" y1="9" x2="-38" y2="22" stroke="url(#warmGrad2)" stroke-width="3"/>
+  </g>
+
+  <!-- Brand text -->
+  <text x="200" y="300" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="800" fill="#FFFFFF" text-anchor="middle" letter-spacing="2">
+    CLAUDEKIT
+  </text>
+
+  <!-- Tagline -->
+  <text x="200" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="500" fill="#60A5FA" text-anchor="middle" letter-spacing="6">
+    BLENDER MCP
+  </text>
+
+  <!-- Decorative line -->
+  <line x1="120" y1="355" x2="280" y2="355" stroke="url(#orangeGrad2)" stroke-width="2" opacity="0.5"/>
+</svg>

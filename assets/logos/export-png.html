@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClaudeKit Logo PNG Export</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    h1 { color: #FF6B35; margin-bottom: 0.5rem; }
+    .subtitle { color: #888; margin-bottom: 2rem; }
+    .sizes { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; }
+    .size-btn {
+      background: #FF6B35;
+      color: #fff;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .size-btn:hover { background: #E85A00; }
+    .preview {
+      background: #0f0f23;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .preview img { max-width: 100%; height: auto; }
+    canvas { display: none; }
+    .instructions {
+      background: #2a2a4e;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 2rem;
+    }
+    .instructions h3 { margin-top: 0; color: #60A5FA; }
+    .instructions ol { margin: 0; padding-left: 1.5rem; }
+    .instructions li { margin: 0.5rem 0; color: #ccc; }
+  </style>
+</head>
+<body>
+  <h1>ClaudeKit Blender MCP - Logo Export</h1>
+  <p class="subtitle">Click a size to download PNG</p>
+
+  <div class="sizes">
+    <button class="size-btn" onclick="exportPNG(16)">16px</button>
+    <button class="size-btn" onclick="exportPNG(32)">32px</button>
+    <button class="size-btn" onclick="exportPNG(64)">64px</button>
+    <button class="size-btn" onclick="exportPNG(128)">128px</button>
+    <button class="size-btn" onclick="exportPNG(256)">256px</button>
+    <button class="size-btn" onclick="exportPNG(512)">512px</button>
+    <button class="size-btn" onclick="exportPNG(1024)">1024px</button>
+    <button class="size-btn" onclick="exportAll()">Download All</button>
+  </div>
+
+  <div class="preview">
+    <h3>Preview</h3>
+    <img id="preview" src="logo.svg" alt="Logo Preview" style="max-width: 400px;">
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <div class="instructions">
+    <h3>Instructions</h3>
+    <ol>
+      <li>Open this file in a browser (double-click or drag to browser)</li>
+      <li>Click any size button to download that PNG</li>
+      <li>Click "Download All" to get all sizes at once</li>
+      <li>PNGs will be saved to your Downloads folder</li>
+    </ol>
+  </div>
+
+  <script>
+    const svgUrl = 'logo.svg';
+
+    async function exportPNG(size) {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = size;
+      canvas.height = size;
+
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
+
+        const link = document.createElement('a');
+        link.download = `claudekit-blender-mcp-logo-${size}x${size}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
+      img.src = svgUrl;
+    }
+
+    async function exportAll() {
+      const sizes = [16, 32, 64, 128, 256, 512, 1024];
+      for (let i = 0; i < sizes.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        exportPNG(sizes[i]);
+      }
+    }
+  </script>
+</body>
+</html>

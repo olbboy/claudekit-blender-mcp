@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <!-- Vibrant gradient -->
+    <linearGradient id="vibrantGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B35"/>
+      <stop offset="50%" style="stop-color:#F7931E"/>
+      <stop offset="100%" style="stop-color:#FFB700"/>
+    </linearGradient>
+    <!-- Cool accent -->
+    <linearGradient id="coolAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667EEA"/>
+      <stop offset="100%" style="stop-color:#764BA2"/>
+    </linearGradient>
+    <!-- Background gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F0F23"/>
+      <stop offset="100%" style="stop-color:#1A1A3E"/>
+    </linearGradient>
+    <!-- Glow effect -->
+    <filter id="glowEffect">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="400" fill="url(#bgGrad)"/>
+
+  <!-- Abstract flowing shape representing 3D/creativity -->
+  <g transform="translate(200, 155)" filter="url(#glowEffect)">
+    <!-- Main flowing shape -->
+    <path d="M -70,20 Q -70,-60 0,-70 Q 70,-60 70,20 Q 70,60 0,70 Q -50,65 -70,20"
+          fill="url(#vibrantGrad)" opacity="0.9"/>
+
+    <!-- Inner detail -->
+    <path d="M -40,10 Q -40,-35 0,-42 Q 40,-35 40,10 Q 40,40 0,45 Q -30,42 -40,10"
+          fill="url(#coolAccent)" opacity="0.7"/>
+
+    <!-- Central bright spot -->
+    <ellipse cx="0" cy="-5" rx="20" ry="18" fill="#FFFFFF" opacity="0.3"/>
+
+    <!-- MCP protocol nodes -->
+    <g>
+      <circle cx="-55" cy="-40" r="8" fill="#FFF" opacity="0.9"/>
+      <circle cx="55" cy="-40" r="8" fill="#FFF" opacity="0.9"/>
+      <circle cx="0" cy="55" r="8" fill="#FFF" opacity="0.9"/>
+
+      <!-- Connection arcs -->
+      <path d="M -48,-35 Q 0,-80 48,-35" fill="none" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+      <path d="M -48,-45 Q -70,10 -8,50" fill="none" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+      <path d="M 48,-45 Q 70,10 8,50" fill="none" stroke="#FFF" stroke-width="2" opacity="0.5"/>
+    </g>
+  </g>
+
+  <!-- Brand text with glow -->
+  <g filter="url(#glowEffect)">
+    <text x="200" y="290" font-family="system-ui, -apple-system, sans-serif" font-size="40" font-weight="800" fill="#FFFFFF" text-anchor="middle">
+      ClaudeKit
+    </text>
+  </g>
+
+  <!-- Subtitle -->
+  <text x="200" y="325" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="400" fill="url(#vibrantGrad)" text-anchor="middle" letter-spacing="4">
+    BLENDER MCP
+  </text>
+
+  <!-- Bottom decorative element -->
+  <g transform="translate(200, 360)">
+    <circle cx="-30" cy="0" r="4" fill="url(#vibrantGrad)"/>
+    <line x1="-20" y1="0" x2="20" y2="0" stroke="url(#vibrantGrad)" stroke-width="2"/>
+    <circle cx="30" cy="0" r="4" fill="url(#vibrantGrad)"/>
+  </g>
+</svg>
