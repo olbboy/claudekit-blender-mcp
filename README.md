@@ -226,7 +226,7 @@ tail -f ~/.config/Claude/logs/mcp*.log
 
 **2. Verify Blender addon is running:**
 - Open Blender → Window → Toggle System Console
-- Look for: "Blender MCP Server started on ws://localhost:8765"
+- Look for: "BlenderMCP server started on localhost:9876"
 
 **3. Test MCP server manually:**
 
@@ -268,8 +268,8 @@ cat ~/Library/Application\ Support/Claude/claude_desktop_config.json | python3 -
 
 **Firewall issues:**
 - Ensure localhost connections are allowed
-- Default port: 8765
-- Protocol: WebSocket (ws://)
+- Default port: 9876
+- Protocol: TCP Socket
 
 ### Module Not Found Errors
 

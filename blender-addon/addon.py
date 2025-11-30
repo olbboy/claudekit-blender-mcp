@@ -204,10 +204,27 @@ class BlenderMCPServer:
 
         # Base handlers that are always available
         handlers = {
+            # Scene/Object info
             "get_scene_info": self.get_scene_info,
             "get_object_info": self.get_object_info,
             "get_viewport_screenshot": self.get_viewport_screenshot,
             "execute_code": self.execute_code,
+            # Object manipulation (P0/P1 priority)
+            "create_primitive": self.create_primitive,
+            "modify_object": self.modify_object,
+            "delete_object": self.delete_object,
+            # Material system (P2 priority)
+            "create_material": self.create_material,
+            "apply_material": self.apply_material,
+            "set_material_property": self.set_material_property,
+            # Collection management
+            "create_collection": self.create_collection,
+            "add_to_collection": self.add_to_collection,
+            "list_collections": self.list_collections,
+            # File operations
+            "save_file": self.save_file,
+            "render_scene": self.render_scene,
+            # Status checks
             "get_polyhaven_status": self.get_polyhaven_status,
             "get_hyper3d_status": self.get_hyper3d_status,
             "get_sketchfab_status": self.get_sketchfab_status,
@@ -433,7 +450,477 @@ class BlenderMCPServer:
         except Exception as e:
             raise Exception(f"Code execution error: {str(e)}")
 
+    # ========================================
+    # OBJECT MANIPULATION HANDLERS (P0/P1)
+    # ========================================
 
+    def create_primitive(self, primitive_type, name=None, location=None, scale=None):
+        """Create a primitive mesh object in Blender"""
+        try:
+            # Map primitive types to Blender operators
+            primitive_ops = {
+                'CUBE': bpy.ops.mesh.primitive_cube_add,
+                'SPHERE': bpy.ops.mesh.primitive_uv_sphere_add,
+                'UV_SPHERE': bpy.ops.mesh.primitive_uv_sphere_add,
+                'ICO_SPHERE': bpy.ops.mesh.primitive_ico_sphere_add,
+                'CYLINDER': bpy.ops.mesh.primitive_cylinder_add,
+                'CONE': bpy.ops.mesh.primitive_cone_add,
+                'TORUS': bpy.ops.mesh.primitive_torus_add,
+                'PLANE': bpy.ops.mesh.primitive_plane_add,
+                'MONKEY': bpy.ops.mesh.primitive_monkey_add,
+            }
+
+            primitive_type_upper = primitive_type.upper()
+            if primitive_type_upper not in primitive_ops:
+                raise ValueError(f"Unknown primitive type: {primitive_type}. Supported: {list(primitive_ops.keys())}")
+
+            # Prepare location
+            loc = (0, 0, 0)
+            if location:
+                loc = tuple(location) if isinstance(location, (list, tuple)) else (location, location, location)
+
+            # Create the primitive
+            op = primitive_ops[primitive_type_upper]
+            op(location=loc)
+
+            # Get the newly created object (it's automatically selected)
+            obj = bpy.context.active_object
+
+            # Apply custom name if provided
+            if name:
+                obj.name = name
+
+            # Apply scale if provided
+            if scale:
+                if isinstance(scale, (list, tuple)):
+                    obj.scale = tuple(scale)
+                else:
+                    obj.scale = (scale, scale, scale)
+
+            return {
+                "created": True,
+                "object_name": obj.name,
+                "type": primitive_type_upper,
+                "location": list(obj.location),
+                "scale": list(obj.scale)
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to create primitive: {str(e)}")
+
+    def modify_object(self, object_name, location=None, rotation=None, scale=None):
+        """Modify an existing object's transforms"""
+        try:
+            obj = bpy.data.objects.get(object_name)
+            if not obj:
+                raise ValueError(f"Object not found: {object_name}")
+
+            modified = []
+
+            if location is not None:
+                obj.location = tuple(location) if isinstance(location, (list, tuple)) else (location, location, location)
+                modified.append("location")
+
+            if rotation is not None:
+                obj.rotation_euler = tuple(rotation) if isinstance(rotation, (list, tuple)) else (rotation, rotation, rotation)
+                modified.append("rotation")
+
+            if scale is not None:
+                obj.scale = tuple(scale) if isinstance(scale, (list, tuple)) else (scale, scale, scale)
+                modified.append("scale")
+
+            if not modified:
+                raise ValueError("No transform properties provided. Specify at least one of: location, rotation, scale")
+
+            return {
+                "modified": True,
+                "object_name": obj.name,
+                "properties_changed": modified,
+                "location": list(obj.location),
+                "rotation": list(obj.rotation_euler),
+                "scale": list(obj.scale)
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to modify object: {str(e)}")
+
+    def delete_object(self, object_name):
+        """Delete an object from the scene"""
+        try:
+            obj = bpy.data.objects.get(object_name)
+            if not obj:
+                raise ValueError(f"Object not found: {object_name}")
+
+            # Store name before deletion
+            deleted_name = obj.name
+            obj_type = obj.type
+
+            # Remove from all collections first
+            for collection in obj.users_collection:
+                collection.objects.unlink(obj)
+
+            # Delete the object data if it exists and is not used elsewhere
+            obj_data = obj.data
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+            # Clean up orphaned mesh data
+            if obj_data and obj_data.users == 0:
+                if obj_type == 'MESH':
+                    bpy.data.meshes.remove(obj_data)
+                elif obj_type == 'CURVE':
+                    bpy.data.curves.remove(obj_data)
+                elif obj_type == 'LIGHT':
+                    bpy.data.lights.remove(obj_data)
+                elif obj_type == 'CAMERA':
+                    bpy.data.cameras.remove(obj_data)
+
+            return {
+                "deleted": True,
+                "object_name": deleted_name,
+                "type": obj_type
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to delete object: {str(e)}")
+
+    # ========================================
+    # MATERIAL SYSTEM HANDLERS (P2)
+    # ========================================
+
+    def create_material(self, material_name, base_color=None, metallic=None, roughness=None,
+                        emission_color=None, emission_strength=None):
+        """Create a new PBR material with Principled BSDF shader"""
+        try:
+            # Check if material already exists
+            if material_name in bpy.data.materials:
+                mat = bpy.data.materials[material_name]
+            else:
+                mat = bpy.data.materials.new(name=material_name)
+
+            mat.use_nodes = True
+            nodes = mat.node_tree.nodes
+
+            # Get or create Principled BSDF node
+            principled = None
+            for node in nodes:
+                if node.type == 'BSDF_PRINCIPLED':
+                    principled = node
+                    break
+
+            if not principled:
+                # Clear existing nodes and create new setup
+                nodes.clear()
+                principled = nodes.new(type='ShaderNodeBsdfPrincipled')
+                principled.location = (0, 0)
+                output = nodes.new(type='ShaderNodeOutputMaterial')
+                output.location = (300, 0)
+                mat.node_tree.links.new(principled.outputs['BSDF'], output.inputs['Surface'])
+
+            # Apply properties
+            if base_color is not None:
+                if len(base_color) == 3:
+                    base_color = list(base_color) + [1.0]  # Add alpha
+                principled.inputs['Base Color'].default_value = tuple(base_color)
+
+            if metallic is not None:
+                principled.inputs['Metallic'].default_value = float(metallic)
+
+            if roughness is not None:
+                principled.inputs['Roughness'].default_value = float(roughness)
+
+            if emission_color is not None:
+                if len(emission_color) == 3:
+                    emission_color = list(emission_color) + [1.0]
+                # Blender 4.0+ uses 'Emission Color', older versions use 'Emission'
+                if 'Emission Color' in principled.inputs:
+                    principled.inputs['Emission Color'].default_value = tuple(emission_color)
+                elif 'Emission' in principled.inputs:
+                    principled.inputs['Emission'].default_value = tuple(emission_color)
+
+            if emission_strength is not None:
+                if 'Emission Strength' in principled.inputs:
+                    principled.inputs['Emission Strength'].default_value = float(emission_strength)
+
+            return {
+                "created": True,
+                "material_name": mat.name,
+                "has_nodes": mat.use_nodes
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to create material: {str(e)}")
+
+    def apply_material(self, object_name, material_name):
+        """Apply a material to an object"""
+        try:
+            obj = bpy.data.objects.get(object_name)
+            if not obj:
+                raise ValueError(f"Object not found: {object_name}")
+
+            mat = bpy.data.materials.get(material_name)
+            if not mat:
+                raise ValueError(f"Material not found: {material_name}")
+
+            # Check if object can have materials
+            if obj.type not in ['MESH', 'CURVE', 'SURFACE', 'META', 'FONT', 'GPENCIL']:
+                raise ValueError(f"Object type '{obj.type}' does not support materials")
+
+            # Apply material to first slot or create new slot
+            if obj.data.materials:
+                obj.data.materials[0] = mat
+            else:
+                obj.data.materials.append(mat)
+
+            return {
+                "applied": True,
+                "object_name": obj.name,
+                "material_name": mat.name
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to apply material: {str(e)}")
+
+    def set_material_property(self, material_name, property, value):
+        """Set a specific property on a material"""
+        try:
+            mat = bpy.data.materials.get(material_name)
+            if not mat:
+                raise ValueError(f"Material not found: {material_name}")
+
+            if not mat.use_nodes:
+                raise ValueError(f"Material '{material_name}' does not use nodes")
+
+            # Find Principled BSDF
+            principled = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'BSDF_PRINCIPLED':
+                    principled = node
+                    break
+
+            if not principled:
+                raise ValueError(f"Material '{material_name}' has no Principled BSDF node")
+
+            # Map property names to node inputs
+            property_map = {
+                'base_color': 'Base Color',
+                'metallic': 'Metallic',
+                'roughness': 'Roughness',
+                'emission_color': 'Emission Color',
+                'emission_strength': 'Emission Strength',
+            }
+
+            if property not in property_map:
+                raise ValueError(f"Unknown property: {property}. Supported: {list(property_map.keys())}")
+
+            input_name = property_map[property]
+
+            # Handle fallback for older Blender versions
+            if input_name == 'Emission Color' and input_name not in principled.inputs:
+                input_name = 'Emission'
+
+            if input_name not in principled.inputs:
+                raise ValueError(f"Property '{property}' not available in this Blender version")
+
+            # Set the value
+            if isinstance(value, (list, tuple)):
+                if len(value) == 3:
+                    value = list(value) + [1.0]
+                principled.inputs[input_name].default_value = tuple(value)
+            else:
+                principled.inputs[input_name].default_value = float(value)
+
+            return {
+                "set": True,
+                "material_name": mat.name,
+                "property": property,
+                "value": value
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to set material property: {str(e)}")
+
+    # ========================================
+    # COLLECTION MANAGEMENT HANDLERS (P3)
+    # ========================================
+
+    def create_collection(self, collection_name, parent_name=None):
+        """Create a new collection"""
+        try:
+            # Check if collection already exists
+            if collection_name in bpy.data.collections:
+                return {
+                    "created": False,
+                    "collection_name": collection_name,
+                    "message": "Collection already exists"
+                }
+
+            # Create new collection
+            new_collection = bpy.data.collections.new(collection_name)
+
+            # Link to parent or scene
+            if parent_name:
+                parent = bpy.data.collections.get(parent_name)
+                if not parent:
+                    raise ValueError(f"Parent collection not found: {parent_name}")
+                parent.children.link(new_collection)
+            else:
+                bpy.context.scene.collection.children.link(new_collection)
+
+            return {
+                "created": True,
+                "collection_name": new_collection.name,
+                "parent": parent_name or "Scene Collection"
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to create collection: {str(e)}")
+
+    def add_to_collection(self, object_name, collection_name):
+        """Add an object to a collection"""
+        try:
+            obj = bpy.data.objects.get(object_name)
+            if not obj:
+                raise ValueError(f"Object not found: {object_name}")
+
+            collection = bpy.data.collections.get(collection_name)
+            if not collection:
+                raise ValueError(f"Collection not found: {collection_name}")
+
+            # Check if already in collection
+            if obj.name in collection.objects:
+                return {
+                    "added": False,
+                    "object_name": obj.name,
+                    "collection_name": collection.name,
+                    "message": "Object already in collection"
+                }
+
+            collection.objects.link(obj)
+
+            return {
+                "added": True,
+                "object_name": obj.name,
+                "collection_name": collection.name
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to add to collection: {str(e)}")
+
+    def list_collections(self):
+        """List all collections in the scene"""
+        try:
+            collections = []
+
+            def get_collection_info(coll, depth=0):
+                info = {
+                    "name": coll.name,
+                    "object_count": len(coll.objects),
+                    "children_count": len(coll.children),
+                    "depth": depth
+                }
+                collections.append(info)
+                for child in coll.children:
+                    get_collection_info(child, depth + 1)
+
+            # Start from scene collection
+            get_collection_info(bpy.context.scene.collection)
+
+            return {
+                "collections": collections,
+                "total_count": len(collections)
+            }
+
+        except Exception as e:
+            raise Exception(f"Failed to list collections: {str(e)}")
+
+    # ========================================
+    # FILE OPERATIONS HANDLERS
+    # ========================================
+
+    def save_file(self, filepath=None):
+        """Save the current Blender file"""
+        try:
+            if filepath:
+                # Ensure .blend extension
+                if not filepath.endswith('.blend'):
+                    filepath += '.blend'
+                bpy.ops.wm.save_as_mainfile(filepath=filepath)
+                return {
+                    "saved": True,
+                    "filepath": filepath,
+                    "method": "save_as"
+                }
+            else:
+                # Save to current file
+                if bpy.data.filepath:
+                    bpy.ops.wm.save_mainfile()
+                    return {
+                        "saved": True,
+                        "filepath": bpy.data.filepath,
+                        "method": "save"
+                    }
+                else:
+                    raise ValueError("No filepath provided and file has never been saved. Please provide a filepath.")
+
+        except Exception as e:
+            raise Exception(f"Failed to save file: {str(e)}")
+
+    def render_scene(self, output_path=None, resolution_x=None, resolution_y=None,
+                     samples=None, engine=None):
+        """Render the current scene"""
+        try:
+            scene = bpy.context.scene
+
+            # Store original settings
+            original_path = scene.render.filepath
+            original_res_x = scene.render.resolution_x
+            original_res_y = scene.render.resolution_y
+
+            # Apply settings
+            if output_path:
+                scene.render.filepath = output_path
+            elif not scene.render.filepath:
+                # Default output path
+                scene.render.filepath = "//render_output"
+
+            if resolution_x:
+                scene.render.resolution_x = int(resolution_x)
+            if resolution_y:
+                scene.render.resolution_y = int(resolution_y)
+
+            if engine:
+                engine_map = {
+                    'EEVEE': 'BLENDER_EEVEE',
+                    'CYCLES': 'CYCLES',
+                    'WORKBENCH': 'BLENDER_WORKBENCH'
+                }
+                scene.render.engine = engine_map.get(engine.upper(), engine)
+
+            if samples and scene.render.engine == 'CYCLES':
+                scene.cycles.samples = int(samples)
+
+            # Render
+            bpy.ops.render.render(write_still=True)
+
+            result = {
+                "rendered": True,
+                "output_path": scene.render.filepath,
+                "resolution": [scene.render.resolution_x, scene.render.resolution_y],
+                "engine": scene.render.engine
+            }
+
+            # Restore original settings if we changed them temporarily
+            if output_path:
+                scene.render.filepath = original_path
+            if resolution_x:
+                scene.render.resolution_x = original_res_x
+            if resolution_y:
+                scene.render.resolution_y = original_res_y
+
+            return result
+
+        except Exception as e:
+            raise Exception(f"Failed to render scene: {str(e)}")
 
     def get_polyhaven_categories(self, asset_type):
         """Get categories for a specific asset type from Polyhaven"""
